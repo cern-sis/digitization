@@ -8,7 +8,7 @@ from glob import glob
 
 import click
 
-REGEXP = r"(?!original)([\w]+)\.(xml)"
+REGEXP = r"(?!original)([\w\W]+)\.(xml)"
 MAX_NUMBER_OF_RECORDS_COLLECT = 500
 
 
