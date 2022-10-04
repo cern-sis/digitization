@@ -14,6 +14,10 @@ ERROR = []
 MISSING_XMLS = []
 
 
+def url_from_eos_path(path):
+    return path.replace(main_directory, URL)
+
+
 def download_files_from_ftp(force=False):
     host = os.getenv("FTP_HOST")
     username = os.getenv("FTP_USERNAME")
