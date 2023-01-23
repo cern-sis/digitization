@@ -47,19 +47,27 @@ jobs:
           tags: registry.cern.ch/cern-sis/digitization:${{ github.ref_name }}
 
       - name: Deploy QA
-        uses: peter-evans/repository-dispatch@v1
+        uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@main
         if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
         with:
-          token: ${{ secrets.CERN_SIS_BOT_PAT }}
-          repository: cern-sis/kubernetes
-          event-type: deploy
-          client-payload: '{"project": "digitization", "environment": "qa", "application": "digitization", "namespace": "digitization-qa","image":"registry.cern.ch/cern-sis/digitization","new_tag":"${{ github.sha }}"}'
+          project: digitization
+          application: digitization
+          environment: qa
+          namespace: digitization-qa
+          image: registry.cern.ch/cern-sis/digitization
+          new_tag: ${{ github.sha }}
+        secrets:
+          PAT: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
 
       - name: Deploy PROD
         uses: peter-evans/repository-dispatch@v1
         if: ${{ github.event_name == 'release'}}
         with:
-          token: ${{ secrets.CERN_SIS_BOT_PAT }}
-          repository: cern-sis/kubernetes
-          event-type: deploy
-          client-payload: '{"project": "digitization", "environment": "prod", "application": "digitization", "namespace": "digitization-prod","image":"registry.cern.ch/cern-sis/digitization","new_tag": "${{ github.ref_name }}" }'
+          project: digitization
+          application: digitization
+          environment: prod
+          namespace: digitization-prod
+          image: registry.cern.ch/cern-sis/digitization
+          new_tag: ${{ github.ref_name }}
+        secrets:
+          PAT: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
