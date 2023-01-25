@@ -60,7 +60,7 @@ jobs:
           PAT: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
 
       - name: Deploy PROD
-        uses: peter-evans/repository-dispatch@v1
+        uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@main
         if: ${{ github.event_name == 'release'}}
         with:
           project: digitization
