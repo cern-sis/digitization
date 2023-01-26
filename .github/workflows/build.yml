@@ -53,7 +53,6 @@ jobs:
     with:
       project: digitization
       application: digitization
-      environment: qa
       namespace: digitization-qa
       image: registry.cern.ch/cern-sis/digitization
       new_tag: ${{ github.sha }}
@@ -68,7 +67,6 @@ jobs:
     with:
       project: digitization
       application: digitization
-      environment: prod
       namespace: digitization-prod
       image: registry.cern.ch/cern-sis/digitization
       new_tag: ${{ github.ref_name }}
