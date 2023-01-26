@@ -45,29 +45,32 @@ jobs:
           registry: registry.cern.ch
           push: true
           tags: registry.cern.ch/cern-sis/digitization:${{ github.ref_name }}
+  deploy-qa:
+    name: Deploy QA
+    needs: [build]
+    uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@main
+    if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
+    with:
+      project: digitization
+      application: digitization
+      environment: qa
+      namespace: digitization-qa
+      image: registry.cern.ch/cern-sis/digitization
+      new_tag: ${{ github.sha }}
+    secrets:
+      PAT: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
 
-      - name: Deploy QA
-        uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@main
-        if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
-        with:
-          project: digitization
-          application: digitization
-          environment: qa
-          namespace: digitization-qa
-          image: registry.cern.ch/cern-sis/digitization
-          new_tag: ${{ github.sha }}
-        secrets:
-          PAT: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
-
-      - name: Deploy PROD
-        uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@main
-        if: ${{ github.event_name == 'release'}}
-        with:
-          project: digitization
-          application: digitization
-          environment: prod
-          namespace: digitization-prod
-          image: registry.cern.ch/cern-sis/digitization
-          new_tag: ${{ github.ref_name }}
-        secrets:
-          PAT: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
+  deploy-prod:
+    name: Deploy Prod
+    uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@main
+    needs: [build]
+    if: ${{ github.event_name == 'release'}}
+    with:
+      project: digitization
+      application: digitization
+      environment: prod
+      namespace: digitization-prod
+      image: registry.cern.ch/cern-sis/digitization
+      new_tag: ${{ github.ref_name }}
+    secrets:
+      PAT: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
