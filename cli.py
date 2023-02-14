@@ -19,18 +19,21 @@ def url_from_eos_path(path):
 
 
 def fix_white_spaces_in_directory(start_dir):
-    download_directory = os.getenv("DOWNLOAD_DIR", "/tmp/")
-    for root, dirs, files in os.walk(os.path.join(download_directory, start_dir), topdown=False):
+    for root, dirs, files in os.walk(start_dir, topdown=False):
         for directory in dirs:
-            if ' ' in directory:
-                new_directory = directory.replace(' ', '_')
-                os.rename(os.path.join(root, directory), os.path.join(root, new_directory))
-                print(f'Renamed directory: {directory} -> {new_directory}')
+            if " " in directory:
+                new_directory = directory.replace(" ", "_")
+                os.rename(
+                    os.path.join(root, directory), os.path.join(root, new_directory)
+                )
+                print(f"Renamed directory: {directory} -> {new_directory}")
         for filename in files:
-            if ' ' in filename:
-                new_filename = filename.replace(' ', '_')
-                os.rename(os.path.join(root, filename), os.path.join(root, new_filename))
-                print(f'Renamed file: {filename} -> {new_filename}')
+            if " " in filename:
+                new_filename = filename.replace(" ", "_")
+                os.rename(
+                    os.path.join(root, filename), os.path.join(root, new_filename)
+                )
+                print(f"Renamed file: {filename} -> {new_filename}")
 
 
 def download_files_from_ftp(force=False):
@@ -160,8 +163,9 @@ def download(force, fix_eos_paths, fix_white_spaces):
 
     if fix_white_spaces:
         click.echo("Fixing white spaces in directories and files.")
+        download_directory = os.getenv("DOWNLOAD_DIR", "/tmp/")
         for directory in downloaded_directories:
-            fix_white_spaces_in_directory(directory)
+            fix_white_spaces_in_directory(os.path.join(download_directory, directory))
 
     if fix_eos_paths:
         click.echo("Fixing paths in xml.")
@@ -175,5 +179,14 @@ def fix_eos_paths():
     find_all_xmls()
 
 
-if __name__ == '__main__':
+@digitization.command("fix-white-spaces")
+@click.option("-d", "--start-from-dir", type=str)
+def fix_white_spaces(start_from_dir):
+    """Fix white spaces."""
+    print(start_from_dir)
+    click.echo("Fixing white spaces in directories and files.")
+    fix_white_spaces_in_directory(start_from_dir)
+
+
+if __name__ == "__main__":
     digitization()
