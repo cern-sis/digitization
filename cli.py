@@ -18,6 +18,21 @@ def url_from_eos_path(path):
     return path.replace(main_directory, URL)
 
 
+def fix_white_spaces_in_directory(start_dir):
+    download_directory = os.getenv("DOWNLOAD_DIR", "/tmp/")
+    for root, dirs, files in os.walk(os.path.join(download_directory, start_dir), topdown=False):
+        for directory in dirs:
+            if ' ' in directory:
+                new_directory = directory.replace(' ', '_')
+                os.rename(os.path.join(root, directory), os.path.join(root, new_directory))
+                print(f'Renamed directory: {directory} -> {new_directory}')
+        for filename in files:
+            if ' ' in filename:
+                new_filename = filename.replace(' ', '_')
+                os.rename(os.path.join(root, filename), os.path.join(root, new_filename))
+                print(f'Renamed file: {filename} -> {new_filename}')
+
+
 def download_files_from_ftp(force=False):
     host = os.getenv("FTP_HOST")
     username = os.getenv("FTP_USERNAME")
@@ -28,7 +43,7 @@ def download_files_from_ftp(force=False):
 
     cnopts = pysftp.CnOpts()
     cnopts.hostkeys = None
-
+    downloaded_directories = []
     with pysftp.Connection(
         host=host, username=username, password=password, cnopts=cnopts
     ) as sftp:
@@ -42,10 +57,12 @@ def download_files_from_ftp(force=False):
                 remoteFilePath = attr.filename
                 localFilePath = download_directory
                 sftp.get_r(remoteFilePath, localFilePath, preserve_mtime=True)
+                downloaded_directories.append(attr.filename)
             else:
                 click.echo(
                     f"Directory already exists`{attr.filename}`. Skip downloading..."
                 )
+    return downloaded_directories
 
 
 def fix_xml(root, xml_path, tif_path, pdf_path):
@@ -134,11 +151,17 @@ def digitization():
 @digitization.command()
 @click.option("--force", default=False, show_default=True, is_flag=True)
 @click.option("--fix-eos-paths", default=False, show_default=True, is_flag=True)
-def download(force, fix_eos_paths):
+@click.option("--fix-white-spaces", default=False, show_default=True, is_flag=True)
+def download(force, fix_eos_paths, fix_white_spaces):
     """Download files from ftp."""
 
     click.echo("Downloading new files.")
-    download_files_from_ftp(force=force)
+    downloaded_directories = download_files_from_ftp(force=force)
+
+    if fix_white_spaces:
+        click.echo("Fixing white spaces in directories and files.")
+        for directory in downloaded_directories:
+            fix_white_spaces_in_directory(directory)
 
     if fix_eos_paths:
         click.echo("Fixing paths in xml.")
