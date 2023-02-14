@@ -1,8 +1,12 @@
-import xml.etree.ElementTree as ET
+from glob import glob
 import click
-import pysftp
+import logging
 import os
+import pysftp
+import re
 import shutil
+import sys
+import xml.etree.ElementTree as ET
 
 
 URL = "https://digitization.web.cern.ch"
@@ -12,10 +16,56 @@ main_directory = (
 )
 ERROR = []
 MISSING_XMLS = []
+REGEXP = r"(?!original)([\w\W]+)\.(xml)"
+MAX_NUMBER_OF_RECORDS_COLLECT = 500
 
 
 def url_from_eos_path(path):
     return path.replace(main_directory, URL)
+
+
+def records_collection(input_dir, output_dir):
+    records_collection_dict, dict_key = {}, 0
+    records_collection = []
+    logging.info("Finding XML files")
+    for dir in os.walk(input_dir):
+        for file_path in glob(os.path.join(dir[0], "*.xml")):
+            file_name = file_path.split("/")[-1]
+            if re.match(REGEXP, file_name):
+                if len(records_collection) == MAX_NUMBER_OF_RECORDS_COLLECT:
+                    dict_key += 1
+                    records_collection_dict[dict_key] = records_collection
+                    records_collection.clear()
+                    logging.info("{} collection created.".format(dict_key))
+                else:
+                    records_collection.append(file_path)
+    records_collection_dict[dict_key + 1] = records_collection
+    logging.info("Searching completed.")
+
+    for k, records_collection in records_collection_dict.items():
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        filename = "{}/{}.xml".format(output_dir, k)
+
+        with open(filename, "w") as nf:
+            nf.write("<collection>")
+            for record_path in records_collection:
+                with open(record_path, "r") as f:
+                    logging.info("Reading {}".format(record_path))
+                    data = f.read()
+
+                # Remove collection tag to have only one per xml file
+                data = data.replace("<collection>", "")
+                data = data.replace("</collection>", "")
+
+                # Write the xml in the collection
+                logging.info("Writing in the collection {}".format(filename))
+                nf.write(data)
+
+            nf.write("</collection>")
+
+        logging.info("Collection {} written successfully.".format(k))
 
 
 def fix_white_spaces_in_directory(start_dir):
@@ -155,21 +205,32 @@ def digitization():
 @click.option("--force", default=False, show_default=True, is_flag=True)
 @click.option("--fix-eos-paths", default=False, show_default=True, is_flag=True)
 @click.option("--fix-white-spaces", default=False, show_default=True, is_flag=True)
-def download(force, fix_eos_paths, fix_white_spaces):
+@click.option(
+    "--create-collection-file", default=False, show_default=True, is_flag=True
+)
+def download(force, fix_eos_paths, fix_white_spaces, create_collection_file):
     """Download files from ftp."""
 
     click.echo("Downloading new files.")
     downloaded_directories = download_files_from_ftp(force=force)
+    download_directory = os.getenv("DOWNLOAD_DIR", "/tmp/")
 
     if fix_white_spaces:
         click.echo("Fixing white spaces in directories and files.")
-        download_directory = os.getenv("DOWNLOAD_DIR", "/tmp/")
         for directory in downloaded_directories:
             fix_white_spaces_in_directory(os.path.join(download_directory, directory))
 
     if fix_eos_paths:
         click.echo("Fixing paths in xml.")
         find_all_xmls()
+
+    if create_collection_file:
+        click.echo("Creating collection file.")
+        for directory in downloaded_directories:
+            records_collection(
+                os.path.join(download_directory, directory),
+                os.path.join(download_directory, directory),
+            )
 
 
 @digitization.command("fix-eos-paths")
@@ -185,6 +246,18 @@ def fix_white_spaces(start_from_dir):
     """Fix white spaces."""
     click.echo(f"Fixing white spaces in directories and files. {start_from_dir}")
     fix_white_spaces_in_directory(start_from_dir)
+
+
+@digitization.command("create-collection-file")
+@click.option("-d", "--start-from-dir", type=str)
+@click.option("-o", "--output-dir", type=str)
+def fix_white_spaces(start_from_dir, output_dir):
+    """Fix white spaces."""
+    click.echo(
+        f"Fixing white spaces in directories and files. {start_from_dir} and {output_dir}"
+    )
+    fix_white_spaces_in_directory(start_from_dir)
+    records_collection(start_from_dir, output_dir)
 
 
 if __name__ == "__main__":
