@@ -183,8 +183,7 @@ def fix_eos_paths():
 @click.option("-d", "--start-from-dir", type=str)
 def fix_white_spaces(start_from_dir):
     """Fix white spaces."""
-    print(start_from_dir)
-    click.echo("Fixing white spaces in directories and files.")
+    click.echo(f"Fixing white spaces in directories and files. {start_from_dir}")
     fix_white_spaces_in_directory(start_from_dir)
 
 
