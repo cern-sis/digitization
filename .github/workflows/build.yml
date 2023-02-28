@@ -48,7 +48,7 @@ jobs:
   deploy-qa:
     name: Deploy QA
     needs: [build]
-    uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@main
+    uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@v1.0.0
     if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
     with:
       project: digitization
@@ -61,7 +61,7 @@ jobs:
 
   deploy-prod:
     name: Deploy Prod
-    uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@main
+    uses: cern-sis/gh-workflows/.github/workflows/deploy-qa.yml@v1.0.0
     needs: [build]
     if: ${{ github.event_name == 'release'}}
     with:
