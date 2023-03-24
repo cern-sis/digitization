@@ -32,13 +32,12 @@ def records_collection(input_dir, output_dir):
         for file_path in glob(os.path.join(dir[0], "*.xml")):
             file_name = file_path.split("/")[-1]
             if re.match(REGEXP, file_name):
-                if len(records_collection) == MAX_NUMBER_OF_RECORDS_COLLECT:
+                if len(records_collection) >= MAX_NUMBER_OF_RECORDS_COLLECT:
                     dict_key += 1
                     records_collection_dict[dict_key] = records_collection
-                    records_collection.clear()
+                    records_collection = []
                     logging.info("{} collection created.".format(dict_key))
-                else:
-                    records_collection.append(file_path)
+                records_collection.append(file_path)
     records_collection_dict[dict_key + 1] = records_collection
     logging.info("Searching completed.")
 
