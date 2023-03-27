@@ -24,7 +24,7 @@ def url_from_eos_path(path):
     return path.replace(main_directory, URL)
 
 
-def records_collection(input_dir, output_dir):
+def records_collection_creation(input_dir, output_dir):
     records_collection_dict, dict_key = {}, 0
     records_collection = []
     logging.info("Finding XML files")
@@ -226,7 +226,8 @@ def download(force, fix_eos_paths, fix_white_spaces, create_collection_file):
     if create_collection_file:
         click.echo("Creating collection file.")
         for directory in downloaded_directories:
-            records_collection(
+            click.echo(f"File {directory}")
+            records_collection_creation(
                 os.path.join(download_directory, directory),
                 os.path.join(download_directory, directory),
             )
