@@ -24,47 +24,42 @@ def url_from_eos_path(path):
     return path.replace(main_directory, URL)
 
 
+def file_list_chunker(files, chunk_size=MAX_NUMBER_OF_RECORDS_COLLECT):
+    for i in range(0, len(files), chunk_size):
+        yield files[i : i + chunk_size]
+
+
 def records_collection_creation(input_dir, output_dir):
-    records_collection_dict, dict_key = {}, 0
-    records_collection = []
-    logging.info("Finding XML files")
-    for dir in os.walk(input_dir):
-        for file_path in glob(os.path.join(dir[0], "*.xml")):
-            file_name = file_path.split("/")[-1]
-            if re.match(REGEXP, file_name):
-                if len(records_collection) >= MAX_NUMBER_OF_RECORDS_COLLECT:
-                    dict_key += 1
-                    records_collection_dict[dict_key] = records_collection
-                    records_collection = []
-                    logging.info("{} collection created.".format(dict_key))
-                records_collection.append(file_path)
-    records_collection_dict[dict_key + 1] = records_collection
-    logging.info("Searching completed.")
+    logging.info(f"Creating collection file for {input_dir}")
 
-    for k, records_collection in records_collection_dict.items():
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+    file_list = [
+        os.path.join(root, _file)
+        for root, _, files in os.walk(input_dir, topdown=False)
+        for _file in files
+        if re.match(REGEXP, _file)
+    ]
 
-        filename = "{}/{}.xml".format(output_dir, k)
+    logging.info(
+        f"All files to be combined found: {len(file_list)}. Will generate {len(file_list) // MAX_NUMBER_OF_RECORDS_COLLECT} collection files."
+    )
 
+    chunks = list(file_list_chunker(file_list))
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    for collection_file_name, chunk in enumerate(chunks, start=1):
+        filename = f"{output_dir}/{collection_file_name}.xml"
         with open(filename, "w") as nf:
             nf.write("<collection>")
-            for record_path in records_collection:
-                with open(record_path, "r") as f:
-                    logging.info("Reading {}".format(record_path))
+            for file_path in chunk:
+                logging.info(f"Processing {file_path}")
+
+                with open(file_path, "r") as f:
                     data = f.read()
-
-                # Remove collection tag to have only one per xml file
-                data = data.replace("<collection>", "")
-                data = data.replace("</collection>", "")
-
-                # Write the xml in the collection
-                logging.info("Writing in the collection {}".format(filename))
+                data = data.replace("<collection>", "").replace("</collection>", "")
                 nf.write(data)
-
             nf.write("</collection>")
-
-        logging.info("Collection {} written successfully.".format(k))
+    logging.info(f"Collection {collection_file_name} written successfully.")
 
 
 def fix_white_spaces_in_directory(start_dir):
