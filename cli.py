@@ -31,7 +31,7 @@ def file_list_chunker(files, chunk_size=MAX_NUMBER_OF_RECORDS_COLLECT):
 
 def records_collection_creation(input_dir, output_dir):
     logging.info(f"Creating collection file for {input_dir}")
-
+    collection_file_created = []
     file_list = [
         os.path.join(root, _file)
         for root, _, files in os.walk(input_dir, topdown=False)
@@ -49,16 +49,26 @@ def records_collection_creation(input_dir, output_dir):
 
     for collection_file_name, chunk in enumerate(chunks, start=1):
         filename = f"{output_dir}/{collection_file_name}.xml"
+
         with open(filename, "w") as nf:
             nf.write("<collection>")
             for file_path in chunk:
                 logging.info(f"Processing {file_path}")
+                try:
+                    with open(file_path, "r") as f:
+                        data = f.read()
+                except Exception as e:
+                    logging.error(f"Error while reading file {file_path}: {e}")
+                    continue
+                try:
+                    data = data.replace("<collection>", "").replace("</collection>", "")
+                    nf.write(data)
+                except Exception as e:
+                    logging.error(f"Error while writing file {file_path}: {e}")
+                    continue
 
-                with open(file_path, "r") as f:
-                    data = f.read()
-                data = data.replace("<collection>", "").replace("</collection>", "")
-                nf.write(data)
             nf.write("</collection>")
+
     logging.info(f"Collection {collection_file_name} written successfully.")
 
 
