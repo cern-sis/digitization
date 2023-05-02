@@ -18,7 +18,7 @@ jobs:
 
       - name: Build and push
         id: build
-        uses: cern-sis/gh-workflows/.github/actions/docker-build@v5.5.0
+        uses: cern-sis/gh-workflows/.github/actions/docker-build@main
         with:
           registry: registry.cern.ch
           image: cern-sis/digitization
