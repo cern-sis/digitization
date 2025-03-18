@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 URL = "https://digitization.web.cern.ch"
 
 main_directory = (
-    "/eos/project/p/psdigitization/public/CERN-Project-Files/CERN-Project-Files/www"
+    "/eos/project-p/psdigitization/public/CERN-Project-Files/CERN-Project-Files/www"
 )
 ERROR = []
 MISSING_XMLS = []
