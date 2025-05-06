@@ -1,13 +1,11 @@
-from glob import glob
 import click
 import logging
 import os
 import pysftp
 import re
 import shutil
-import sys
 import xml.etree.ElementTree as ET
-
+from xml_collect.xml_collect import records_collection
 
 URL = "https://digitization.web.cern.ch"
 
@@ -31,7 +29,6 @@ def file_list_chunker(files, chunk_size=MAX_NUMBER_OF_RECORDS_COLLECT):
 
 def records_collection_creation(input_dir, output_dir):
     logging.info(f"Creating collection file for {input_dir}")
-    collection_file_created = []
     file_list = [
         os.path.join(root, _file)
         for root, _, files in os.walk(input_dir, topdown=False)
@@ -256,7 +253,7 @@ def fix_white_spaces(start_from_dir):
 @digitization.command("create-collection-file")
 @click.option("-d", "--start-from-dir", type=str)
 @click.option("-o", "--output-dir", type=str)
-def fix_white_spaces(start_from_dir, output_dir):
+def create_collection_file(start_from_dir, output_dir):
     """Fix white spaces."""
     click.echo(
         f"Fixing white spaces in directories and files. {start_from_dir} and {output_dir}"
