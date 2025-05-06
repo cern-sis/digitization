@@ -1,23 +1,21 @@
-FROM python:3.8
+FROM python:3.9-slim
 
 WORKDIR /code
 
 ENV PATH="/root/.poetry/bin:${PATH}"
 
-ARG POETRY_VERSION
-ENV POETRY_VERSION="${POETRY_VERSION:-1.1.6}"
 RUN apt-get update \
- && apt-get install -y kstart \
+ && apt-get install -y kstart curl \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* \
  && curl -sSL https://install.python-poetry.org/ \
-  | python - --version "${POETRY_VERSION}"
+  | python
 
 ENV PATH="/root/.local/bin:$PATH"
 
 RUN poetry --version
 
 COPY poetry.lock pyproject.toml ./
-COPY cli.py ./
+COPY digitization ./digitization
 
 RUN poetry install

@@ -5,7 +5,7 @@ import pysftp
 import re
 import shutil
 import xml.etree.ElementTree as ET
-from xml_collect.xml_collect import records_collection
+from .xml_collect.xml_collect import records_collection
 
 URL = "https://digitization.web.cern.ch"
 
