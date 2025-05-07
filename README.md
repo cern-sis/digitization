@@ -21,5 +21,5 @@ The location to download the files.
 
 ```bash
 poetry install
-poetry run python cli.py
+poetry run digitization
 ```
