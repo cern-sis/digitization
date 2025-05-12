@@ -1,5 +1,5 @@
 import click
-from .file_import.file_import import create_import_xml_files
+from .file_import.file_import import create_import_xml_files, get_matching_errors
 from .xml_collect.xml_collect import records_collection
 from .xml_collect.utils import (
     download_files_from_ftp,
@@ -8,6 +8,7 @@ from .xml_collect.utils import (
     records_collection_creation,
 )
 import os
+import logging
 
 @click.group()
 def digitization():
@@ -82,6 +83,35 @@ def create_import_xml(data_path, output_path):
     create_import_xml_files(data_path, output_path)
     click.echo("✅ XML files created successfully.")
 
+
+@digitization.command("get-s3-matching-errors")
+@click.option("-d", "--data-path", type=str, required=True, help="Path to the boite data files folder.")
+@click.option("-o", "--log-path", type=str, required=True, help="Path to save the log file.")
+def get_s3_matching_errors(data_path, log_path):
+    """Log missing files in S3 and Excel."""
+    log_file = os.path.join(log_path, "matching_errors.log")
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+    for box_file in os.listdir(data_path):
+        matching_errors = get_matching_errors(data_path, box_file, False)
+        for filetype, missing_files in matching_errors["missing_in_excel"].items():
+            if missing_files:
+                logging.warning(
+                    f"[{box_file}] Missing in Excel ({filetype}): {', '.join(missing_files)}"
+                )
+            else:
+                logging.info(f"[{box_file}] No missing files in Excel for {filetype}.")
+        for filetype, missing_files in matching_errors["missing_in_s3"].items():
+            if missing_files:
+                logging.warning(
+                    f"[{box_file}] Missing in S3 ({filetype}): {', '.join(missing_files)}"
+                )
+            else:
+                logging.info(f"[{box_file}] No missing files in S3 for {filetype}.")
+    click.echo(f"✅ Log file created: {log_file}")
 
 
 if __name__ == "__main__":

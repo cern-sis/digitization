@@ -6,8 +6,11 @@ from xml.dom import minidom
 load_dotenv()
 
 
+def transform_box_file_name(box_file):
+    return box_file.split('.')[0].upper().replace('-', '_')
+
 def get_s3_file_path(filetype='', box_file='', filename=''):
-    box_file = box_file.split('.')[0].upper().replace('-', '_')
+    box_file = transform_box_file_name(box_file)
     if filetype == 'PDF' or filetype == 'TIFF':
         return f"raw/{filetype}/{box_file}/{filename}/"
     elif filetype == 'PDF_LATEX':
@@ -22,20 +25,32 @@ def get_s3_client():
         endpoint_url='https://s3.cern.ch',
     )
 
-def list_s3_files(bucket_name, prefix, s3_client=None):
+def list_s3_files_and_folders(bucket_name, prefix, s3_client=None):
+    if s3_client is None:
+        s3_client = boto3.client('s3')
+
     try:
         response = s3_client.list_objects_v2(
             Bucket=bucket_name,
             Prefix=prefix,
             Delimiter='/'
         )
+
+        files = []
+        folders = []
+
+        if 'CommonPrefixes' in response:
+            folders = [cp['Prefix'] for cp in response['CommonPrefixes']]
+
         if 'Contents' in response:
-            return [obj['Key'] for obj in response['Contents'] if
-                    not obj['Key'].endswith('/')]
-        else:
-            return []
-    except Exception:
-        return []
+            files = [obj['Key'] for obj in response['Contents'] if not obj['Key'].endswith('/')]
+
+        return {'files': files, 'folders': folders}
+
+    except Exception as e:
+        print(f"Error listing S3 path: {e}")
+        return {'files': [], 'folders': []}
+
 
 def generate_s3_url(bucket_name, file_key, expiration=31556952, s3_client=None):
     return f"{bucket_name}/{file_key}/{expiration}"
