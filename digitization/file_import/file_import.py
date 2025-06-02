@@ -26,12 +26,14 @@ def process_row(row, box_file, s3_client):
             continue
 
         for file in files:
-            s3_url = generate_s3_url('cern-archives', file, s3_client=s3_client)
             if filetype == 'PDF':
+                s3_url = generate_s3_url('cern-archives', file, s3_client=s3_client)
                 record_data['pdf_url'] = s3_url
             elif filetype == 'PDF_LATEX':
+                s3_url = generate_s3_url('cern-archives', file, s3_client=s3_client)
                 record_data['pdf_latex_url'] = s3_url
             elif filetype == 'TIFF':
+                s3_url = generate_s3_url('cern-archives', file, s3_client=s3_client, expiration=157784760)
                 record_data['tiff_urls'].append(s3_url)
 
     return record_data

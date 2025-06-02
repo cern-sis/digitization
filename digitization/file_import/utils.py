@@ -53,7 +53,6 @@ def list_s3_files_and_folders(bucket_name, prefix, s3_client=None):
 
 
 def generate_s3_url(bucket_name, file_key, expiration=31556952, s3_client=None):
-    return f"{bucket_name}/{file_key}/{expiration}"
     return s3_client.generate_presigned_url(
             ClientMethod="get_object",
             Params={"Bucket": bucket_name, "Key": file_key},
@@ -70,13 +69,15 @@ def create_custom_xml(records_data, output_file_path):
         controlfield = ET.SubElement(record_elem, "controlfield", tag="001")
         controlfield.text = str(rec['record_id'])
         if rec.get('pdf_url'):
-            datafield = ET.SubElement(record_elem, "datafield", tag="856", ind1="4", ind2=" ")
-            ET.SubElement(datafield, "subfield", code="u").text = rec['pdf_url']
-            ET.SubElement(datafield, "subfield", code="q").text = "PDF"
+            datafield = ET.SubElement(record_elem, "datafield", tag="FFT", ind1=" ", ind2=" ")
+            ET.SubElement(datafield, "subfield", code="a").text = rec['pdf_url']
+            ET.SubElement(datafield, "subfield", code="t").text = "Main"
+            ET.SubElement(datafield, "subfield", code="d").text = "Fulltext PDF"
         if rec.get('pdf_latex_url'):
-            datafield = ET.SubElement(record_elem, "datafield", tag="856", ind1="4", ind2=" ")
-            ET.SubElement(datafield, "subfield", code="u").text = rec['pdf_latex_url']
-            ET.SubElement(datafield, "subfield", code="q").text = "PDF_LATEX"
+            datafield = ET.SubElement(record_elem, "datafield", tag="FFT", ind1=" ", ind2=" ")
+            ET.SubElement(datafield, "subfield", code="a").text = rec['pdf_latex_url']
+            ET.SubElement(datafield, "subfield", code="t").text = "Main"
+            ET.SubElement(datafield, "subfield", code="d").text = "Fulltext PDF_LaTeX"
         for tiff_url in rec.get('tiff_urls', []):
             datafield = ET.SubElement(record_elem, "datafield", tag="856", ind1="4", ind2=" ")
             ET.SubElement(datafield, "subfield", code="u").text = tiff_url
