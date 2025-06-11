@@ -14,7 +14,7 @@ def get_s3_file_path(filetype='', box_file='', filename=''):
     if filetype == 'PDF' or filetype == 'TIFF':
         return f"raw/{filetype}/{box_file}/{filename}/"
     elif filetype == 'PDF_LATEX':
-        return f"raw/{filetype}/{box_file}/{filename}.pdf"
+        return f"raw/{filetype}/{box_file}/{filename}_latex.pdf"
 
 
 def get_s3_client():

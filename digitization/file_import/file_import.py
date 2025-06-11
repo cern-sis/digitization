@@ -77,7 +77,7 @@ def get_matching_errors(boite_data_path, box_file, corrections_folder=False):
         prefix = f'raw/CORRECTIONS/{ft}/{box_file_s3}/' if corrections_folder else f'raw/{ft}/{box_file_s3}/'
         files_for_type = list_s3_files_and_folders('cern-archives', prefix, s3_client)
         if ft == 'PDF_LATEX':
-            s3_names = [f.split('/')[-1].split('.')[0] for f in files_for_type['files']]
+            s3_names = [f.split('/')[-1].split('_latex.')[0] for f in files_for_type['files']]
         else:
             s3_names = [f.split('/')[-2] for f in files_for_type['folders']]
 
