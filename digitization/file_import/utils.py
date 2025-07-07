@@ -52,10 +52,17 @@ def list_s3_files_and_folders(bucket_name, prefix, s3_client=None):
         return {'files': [], 'folders': []}
 
 
-def generate_s3_url(bucket_name, file_key, expiration=31556952, s3_client=None):
+def generate_s3_url(bucket_name, file_key, pdf, expiration=31556952, s3_client=None):
+    params = {
+        "Bucket": bucket_name,
+        "Key": file_key,
+    }
+    if pdf:
+        params["ResponseContentType"] = "application/pdf"
+    
     return s3_client.generate_presigned_url(
             ClientMethod="get_object",
-            Params={"Bucket": bucket_name, "Key": file_key},
+            Params=params,
             ExpiresIn=expiration,
         )
 
