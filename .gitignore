@@ -9,7 +9,12 @@ wheels/
 .DS_Store
 .env
 
+
+.vscode
+*.xml
 data/
 import_xml_files/
 # Virtual environments
 .venv
+
+

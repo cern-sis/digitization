@@ -11,7 +11,7 @@ def transform_box_file_name(box_file):
 
 def get_s3_file_path(filetype='', box_file='', filename=''):
     box_file = transform_box_file_name(box_file)
-    if filetype == 'PDF' or filetype == 'TIFF':
+    if filetype == 'PDF':
         return f"raw/{filetype}/{box_file}/{filename}/"
     elif filetype == 'PDF_LATEX':
         return f"raw/{filetype}/{box_file}/{filename}_latex.pdf"
@@ -70,7 +70,7 @@ def generate_s3_url(bucket_name, file_key, pdf, expiration=31556952, s3_client=N
 def create_custom_xml(records_data, output_file_path):
     collection = ET.Element("collection")
     for rec in records_data:
-        if not rec.get('pdf_url') and not rec.get('pdf_latex_url') and not rec.get('tiff_urls'):
+        if not rec.get('pdf_url') and not rec.get('pdf_latex_url'):
             continue
         record_elem = ET.SubElement(collection, "record")
         controlfield = ET.SubElement(record_elem, "controlfield", tag="001")
@@ -85,12 +85,25 @@ def create_custom_xml(records_data, output_file_path):
             ET.SubElement(datafield, "subfield", code="a").text = rec['pdf_latex_url']
             ET.SubElement(datafield, "subfield", code="t").text = "Main"
             ET.SubElement(datafield, "subfield", code="d").text = "Fulltext PDF_LaTeX"
-        for tiff_url in rec.get('tiff_urls', []):
-            datafield = ET.SubElement(record_elem, "datafield", tag="856", ind1="4", ind2=" ")
-            ET.SubElement(datafield, "subfield", code="u").text = tiff_url
-            ET.SubElement(datafield, "subfield", code="q").text = "TIFF"
     rough_string = ET.tostring(collection, encoding="utf-8")
     reparsed = minidom.parseString(rough_string)
     pretty_xml = reparsed.toprettyxml(indent="    ")
     with open(output_file_path, "w", encoding="utf-8") as f:
         f.write(pretty_xml)
+
+def combine_xml_files(xml_files, output_file_path):
+    combined_collection = ET.Element("collection")
+    
+    for xml_file in xml_files:
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        for record in root.findall('record'):
+            combined_collection.append(record)
+    
+    rough_string = ET.tostring(combined_collection, encoding="utf-8")
+    reparsed = minidom.parseString(rough_string)
+    pretty_xml = reparsed.toprettyxml(indent="    ")
+    
+    with open(output_file_path, "w", encoding="utf-8") as f:
+        f.write(pretty_xml)
+
