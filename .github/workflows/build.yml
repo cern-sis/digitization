@@ -31,6 +31,7 @@ jobs:
         uses: cern-sis/gh-workflows/.github/actions/kubernetes-project-new-images@v5.6.0
         with:
           event-type: update
+          repo: cern-sis/kubernetes-shared
           images: ${{ steps.build.outputs.image-tags }}
           token: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
 
@@ -39,5 +40,6 @@ jobs:
         uses: cern-sis/gh-workflows/.github/actions/kubernetes-project-new-images@v5.6.0
         with:
           event-type: release
+          repo: cern-sis/kubernetes-shared
           images: ${{ steps.build.outputs.image-tags }}
           token: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
