@@ -1,6 +1,6 @@
 ---
-name: Default Issue Template
-about: Default Issue Description
+name: Digitization issue template
+about: Default issue template for Digitization
 title: ''
 labels: ''
 assignees: ''
