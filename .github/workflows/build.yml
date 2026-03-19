@@ -28,7 +28,7 @@ jobs:
 
       - name: Deploy QA
         if: ${{ github.event_name == 'push'}}
-        uses: cern-sis/gh-workflows/.github/actions/kubernetes-project-new-images@v5.6.0
+        uses: cern-sis/gh-workflows/.github/actions/kubernetes-project-new-images@v6.3.1
         with:
           event-type: update
           repo: cern-sis/kubernetes-shared
@@ -37,7 +37,7 @@ jobs:
 
       - name: Deploy PROD
         if: ${{ github.event_name == 'release'}}
-        uses: cern-sis/gh-workflows/.github/actions/kubernetes-project-new-images@v5.6.0
+        uses: cern-sis/gh-workflows/.github/actions/kubernetes-project-new-images@v6.3.1
         with:
           event-type: release
           repo: cern-sis/kubernetes-shared
