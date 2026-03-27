@@ -18,3 +18,5 @@ import_xml_files/
 .venv
 
 
+requirements.txt
+s3_pdf_issues.json
