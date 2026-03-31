@@ -6,86 +6,100 @@ import json
 from storage_connection import StorageProvider, S3Provider, CernboxProvider
 from validate_pdf import is_pdf_valid
 
-def run_validation_pipeline(provider: StorageProvider, base_path: str, log_file: str, start: int = None, end: int = None, upload_reports: bool = False):
-    """Navigates directories, validates files, and logs corrupted files."""
-    print(f"Discovering folders in: {base_path}")
-    
+
+def run_validation_pipeline(
+    provider: StorageProvider,
+    base_path: str,
+    log_file: str,
+    target_excel_hash: str,
+    upload_reports: bool = False,
+):
+    print(type(upload_reports),bool(upload_reports))
+    """Navigates directories, validates files, and logs files status."""
+    inventory_provider = CernboxProvider(target_excel_hash)
+    excel_files = inventory_provider.list_excel("")
+
+    target_box_numbers = set()
+    for file_path in excel_files:
+        filename = file_path.split(".")[0]
+
+        match = re.search(r"(?i:BOITE)[\-_]O0(\d+)(-\w+)?", filename)
+
+        if match:
+            target_box_numbers.add(int(match.group(1)))
+    print(f"Excel files: {len(target_box_numbers)} boxes to check.")
+
+    print(f"Folders in: {base_path}")
     folders = provider.list_folders(base_path)
-    
+
     if not folders:
         print("No folders found in this path.")
         return
 
-    found_box_numbers = set()
-    empty_folders = []
+    found_and_valid_boxes = set()
     corrupted_files = []
-    valid_files_count = 0
+    valid_files = []
 
     print("Starting validation...")
 
     for folder in folders:
-        if "BOITE_" not in folder:
+        match = re.search(r"(?i:BOITE)[\-_]O0(\d+)(-\w+)?", folder)
+        if not match:
             continue
 
-        match = re.search(r"BOITE_O0(\d+)", folder)
-        if match:
-            box_num = int(match.group(1))
-            if start is not None and box_num < start:
-                continue
-            if end is not None and box_num > end:
-                continue
-            
-            found_box_numbers.add(box_num)
-        else:
+        box_num = int(match.group(1))
+        if box_num not in target_box_numbers:
             continue
-            
-        print(f"\nChecking folder: {folder}")
+        print(f"Processing target Box: {match.group(1) + (match.group(2) or '')}")
+
         pdf_files = provider.list_pdfs(folder)
 
         if not pdf_files:
-            print("   Empty folder or no PDFs.")
-            empty_folders.append(folder)
+            print(f"⚠️ EMPTY FOLDER: {folder}")
             continue
 
-        for file_path in pdf_files:
-            print(f"   {file_path.split('/')[-1]} ... ", end="")
-            
+        found_and_valid_boxes.add(box_num)
+
+        for pdf_path in pdf_files:
             with tempfile.NamedTemporaryFile(delete=True) as tmp:
-                provider.download_to_temp(file_path, tmp.name)
-                valid = is_pdf_valid(tmp.name)
-            
-            if valid:
-                print("✅ Valid")
-                valid_files_count += 1
-            else:
-                print("❌ Corrupted")
-                corrupted_files.append(file_path)
+                provider.download_to_temp(pdf_path, tmp.name)
+
+                if is_pdf_valid(tmp.name):
+                    valid_files.append(pdf_path)
+                    print(f"  ✅ {pdf_path}")
+                else:
+                    print(f"  ❌ CORRUPTED: {pdf_path}")
+                    corrupted_files.append(pdf_path)
+    missing_boxes = target_box_numbers - found_and_valid_boxes
+
+    if missing_boxes:
+        print("\n🚨 Empty target boxes:")
+        for box in sorted(missing_boxes):
+            print(
+                f"  -> BOITE_O0{box}"
+            )
 
     with open(log_file, "w", encoding="utf-8") as log:
+        log.write(
+            f"Validation report for the following boxes {target_box_numbers}\n ✅ Valid Files: {len(valid_files)}\n ❌ Corrupted Files: {len(corrupted_files)}\n"
+        )
+        for vf in valid_files:
+            log.write(f"✅ Valid PDF: {vf}\n")
         for cf in corrupted_files:
-            log.write(f"Corrupted PDF: {cf}\n")
-
-    missing_boxes = []
-    if start is not None and end is not None:
-        expected_boxes = set(range(start, end + 1))
-        missing_boxes = sorted(list(expected_boxes - found_box_numbers))
+            log.write(f"❌ Corrupted PDF: {cf}\n")
 
     json_report = {
-        "metadata": {
-            "base_path": base_path,
-            "range_analyzed": {"start": start, "end": end}
-        },
+        "metadata": {"base_path": base_path, "target_boxes": list(target_box_numbers)},
         "statistics": {
-            "valid_files": valid_files_count,
+            "valid_files_count": len(valid_files),
             "corrupted_files_count": len(corrupted_files),
-            "empty_folders_count": len(empty_folders),
-            "missing_boxes_count": len(missing_boxes) if missing_boxes else 0
+            "missing_boxes_count": len(missing_boxes) if missing_boxes else 0,
         },
-        "issues": {
-            "missing_boxes": missing_boxes if missing_boxes else [],
-            "empty_folders": empty_folders,
-            "corrupted_files": corrupted_files
-        }
+        "output": {
+            "valid_files": valid_files,
+            "missing_boxes": list(missing_boxes) if missing_boxes else [],
+            "corrupted_files": corrupted_files,
+        },
     }
 
     json_file_path = log_file.replace(".log", ".json")
@@ -98,24 +112,26 @@ def run_validation_pipeline(provider: StorageProvider, base_path: str, log_file:
     if upload_reports:
         remote_log_path = f"{base_path.rstrip('/')}/{os.path.basename(log_file)}"
         remote_json_path = f"{base_path.rstrip('/')}/{os.path.basename(json_file_path)}"
-        
+
         print(f"Uploading reports back to the cloud ({base_path})...")
         try:
             provider.upload_file(log_file, remote_log_path)
             provider.upload_file(json_file_path, remote_json_path)
-            print(f"✅ Upload successful! Files available at: {remote_log_path} and {remote_json_path}")
+            print(
+                f"✅ Upload successful! Files available at: {remote_log_path} and {remote_json_path}"
+            )
         except Exception as e:
             print(f"❌ Failed to upload reports: {e}")
+
 
 if __name__ == "__main__":
     s3_provider = S3Provider(bucket="digitization-dev")
     # cernbox_provider = CernboxProvider(public_link_hash="XjjFxUWUMpuTYCz")
-    
+
     run_validation_pipeline(
-        provider=s3_provider, #cernbox_provider
-        base_path="cern-archives/raw/PDF/", #"teste/", 
+        provider=s3_provider,  # cernbox_provider
+        base_path="cern-archives/raw/PDF/",  # "teste/",
         log_file="s3_pdf_issues.log",
-        start=int(sys.argv[1]), #123
-        end=int(sys.argv[2]), #126
-        upload_reports=sys.argv[3] # 0 | 1 
+        target_excel_hash=sys.argv[1],  # public_link_hash
+        upload_reports=int(sys.argv[2]),  # 0 | 1
     )

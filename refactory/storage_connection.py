@@ -22,10 +22,19 @@ class StorageProvider(ABC):
     def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
         pass
 
+    @abstractmethod
+    def list_excel(self, folder_path: str) -> list[str]:
+        pass
+
 class S3Provider(StorageProvider):
     def __init__(self, bucket: str, endpoint_url: str = 'https://s3.cern.ch'):
         self.bucket = bucket
-        self.s3 = boto3.client('s3', endpoint_url=endpoint_url)
+        self.s3 = boto3.client(
+            "s3",
+            aws_access_key_id=os.environ["ACCESS_KEY"],
+            aws_secret_access_key=os.environ["SECRET_KEY"],
+            endpoint_url=endpoint_url,
+        )
 
     def list_folders(self, base_path: str) -> list[str]:
         paginator = self.s3.get_paginator('list_objects_v2')
@@ -47,7 +56,13 @@ class S3Provider(StorageProvider):
 
     def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
         self.s3.upload_file(local_file_path, self.bucket, remote_file_path)
-
+    
+    def list_excel(self, folder_path: str) -> list[str]:
+            response = self.s3.list_objects_v2(Bucket=self.bucket, Prefix=folder_path)
+            return [
+                obj['Key'] for obj in response.get('Contents', [])
+                if obj['Key'].lower().endswith('.xlsx')
+            ]   
 class CernboxProvider(StorageProvider):
     def __init__(self, public_link_hash: str, account: str = None, password: str = None):
         self.public_link_hash = public_link_hash
@@ -55,9 +70,9 @@ class CernboxProvider(StorageProvider):
         self.password = password
         
         self.public_base_url = f"https://cernbox.cern.ch/remote.php/dav/public-files/{public_link_hash}"
-
+        
         if account:
-            self.auth_base_url = f"https://cernbox.cern.ch/remote.php/dav/files/{account}"
+            self.auth_base_url = f"https://api.cernbox.cern.ch/remote.php/dav/files/{account}"
 
     def _propfind(self, path: str, depth: str = "1") -> list[str]:
         url = f"{self.public_base_url}/{path}".rstrip('/') + '/'
@@ -91,6 +106,10 @@ class CernboxProvider(StorageProvider):
         with open(temp_file_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
+
+    def list_excel(self, folder_path: str)-> list[str]:
+        all_items = self._propfind(folder_path)
+        return [p for p in all_items if p.lower().endswith('.xlsx')]
 
     def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
         if not self.account or not self.password:
