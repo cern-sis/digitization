@@ -1,6 +1,6 @@
 import boto3
 import tempfile
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 import os
 
 def get_s3_client():
