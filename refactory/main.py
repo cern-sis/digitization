@@ -14,7 +14,6 @@ def run_validation_pipeline(
     target_excel_hash: str,
     upload_reports: bool = False,
 ):
-    print(type(upload_reports),bool(upload_reports))
     """Navigates directories, validates files, and logs files status."""
     inventory_provider = CernboxProvider(target_excel_hash)
     excel_files = inventory_provider.list_excel("")
