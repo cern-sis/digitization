@@ -53,33 +53,53 @@ export SECRET_KEY="YOUR_SECRET_KEY"
 
 ## Usage with Poetry
 
-Run the main script via Poetry:
+Run the refactored CLI via Poetry:
 
 ```bash
-poetry run python refactory/main.py <target_excel_hash> <upload_reports>
+poetry run digitization_v2 --help
 ```
 
-Parameters:
-
-- `target_excel_hash`: public CERNBox hash containing the inventory Excel files.
-- `upload_reports`: `0` to skip report upload, `1` to upload generated reports back to the S3 bucket. 
+The current command for PDF validation is `validade-files-integrity`.
 
 ### Example
 
 ```bash
-poetry run python refactory/main.py QslvWRIPsBcDAOK 0
+poetry run digitization_v2 check-integrity -s "[122,123]" -u
+```
+
+Parameters:
+
+- `-i, --inventory-source`: Inventory source. Supports CERNBOX Hash, range (`1..10`), or list (`[1,2]`).
+- `-u, --upload-reports`: Flag to upload validation reports back to the storage provider.
+- `-b, --bucket`: S3 bucket name (default: `digitization-dev`).
+
+### Example without upload
+
+```bash
+poetry run digitization_v2 check-integrity -s "[122,123]"
 ```
 
 ## Expected output
 
-The script generates:
+The CLI generates the same validation reports as the core pipeline:
 
-- `s3_pdf_issues.log` - text log with valid and corrupted files.
-- `s3_pdf_issues.json` - structured report with metadata, statistics, and file lists.
+- a text log file such as `s3_pdf_issues.log`
+- a structured JSON report with valid, corrupted, and missing file details
 
-If `upload_reports=1`, the reports are also uploaded back to the S3 bucket.
+If `-u` is provided, the reports will be uploaded back to the configured storage provider.
 
 ## Additional notes
 
-- If CERNBox upload requires authentication, provide `account` and `password` to `CernboxProvider`.
+- `CernboxProvider` reads optional credentials from environment variables:
+  - `CERNBOX_USER`
+  - `CERNBOX_PASSWORD`
+
+### Example environment variables for Cernbox
+
+```bash
+export CERNBOX_USER="your_username"
+export CERNBOX_PASSWORD="your_password"
+```
+
+- You may still pass `account` and `password` directly to `CernboxProvider` if preferred.
 - Use `test_connections.py` to verify connections before running the main pipeline.

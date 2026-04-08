@@ -3,6 +3,7 @@ import re
 import os
 import sys
 import json
+from typing import Union
 from storage_connection import StorageProvider, S3Provider, CernboxProvider
 from validate_pdf import is_pdf_valid
 
@@ -11,21 +12,26 @@ def run_validation_pipeline(
     provider: StorageProvider,
     base_path: str,
     log_file: str,
-    target_excel_hash: str,
+    inventory_source: Union[str, list[int]],
     upload_reports: bool = False,
+
 ):
     """Navigates directories, validates files, and logs files status."""
-    inventory_provider = CernboxProvider(target_excel_hash)
-    excel_files = inventory_provider.list_excel("")
-
     target_box_numbers = set()
-    for file_path in excel_files:
-        filename = file_path.split(".")[0]
+    if isinstance(inventory_source, str):
+        inventory_provider = CernboxProvider(inventory_source)
+        excel_files = inventory_provider.list_excel("")
 
-        match = re.search(r"(?i:BOITE)[\-_]O0(\d+)(-\w+)?", filename)
+        for file_path in excel_files:
+            filename = file_path.split(".")[0]
 
-        if match:
-            target_box_numbers.add(int(match.group(1)))
+            match = re.search(r"(?i:BOITE)[\-_]O0(\d+)(-\w+)?", filename)
+
+            if match:
+                target_box_numbers.add(int(match.group(1)))
+    elif isinstance(inventory_source, list):
+        target_box_numbers = set(inventory_source)
+
     print(f"Excel files: {len(target_box_numbers)} boxes to check.")
 
     print(f"Folders in: {base_path}")
@@ -72,7 +78,7 @@ def run_validation_pipeline(
     missing_boxes = target_box_numbers - found_and_valid_boxes
 
     if missing_boxes:
-        print("\n🚨 Empty target boxes:")
+        print("\n Empty target boxes:")
         for box in sorted(missing_boxes):
             print(
                 f"  -> BOITE_O0{box}"
@@ -125,12 +131,11 @@ def run_validation_pipeline(
 
 if __name__ == "__main__":
     s3_provider = S3Provider(bucket="digitization-dev")
-    # cernbox_provider = CernboxProvider(public_link_hash="XjjFxUWUMpuTYCz")
 
     run_validation_pipeline(
         provider=s3_provider,  # cernbox_provider
         base_path="cern-archives/raw/PDF/",  # "teste/",
         log_file="s3_pdf_issues.log",
-        target_excel_hash=sys.argv[1],  # public_link_hash
-        upload_reports=int(sys.argv[2]),  # 0 | 1
+        inventory_source=sys.argv[1],  # public_link_hash
+        upload_reports=int(sys.argv[2])
     )

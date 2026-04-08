@@ -17,7 +17,7 @@ class StorageProvider(ABC):
     @abstractmethod
     def download_to_temp(self, file_path: str, temp_file_path: str) -> None:
         pass
-        
+
     @abstractmethod
     def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
         pass
@@ -56,34 +56,36 @@ class S3Provider(StorageProvider):
 
     def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
         self.s3.upload_file(local_file_path, self.bucket, remote_file_path)
-    
+
     def list_excel(self, folder_path: str) -> list[str]:
             response = self.s3.list_objects_v2(Bucket=self.bucket, Prefix=folder_path)
             return [
                 obj['Key'] for obj in response.get('Contents', [])
                 if obj['Key'].lower().endswith('.xlsx')
-            ]   
+            ]
 class CernboxProvider(StorageProvider):
-    def __init__(self, public_link_hash: str, account: str = None, password: str = None):
+    def __init__(self, public_link_hash: str):
         self.public_link_hash = public_link_hash
-        self.account = account
-        self.password = password
-        
+        self.account = os.getenv("CERNBOX_ACCOUNT")
+        self.password = os.getenv("CERNBOX_PASSWORD")
+
         self.public_base_url = f"https://cernbox.cern.ch/remote.php/dav/public-files/{public_link_hash}"
-        
-        if account:
-            self.auth_base_url = f"https://api.cernbox.cern.ch/remote.php/dav/files/{account}"
+
+        if self.account:
+            self.auth_base_url = f"https://api.cernbox.cern.ch/remote.php/dav/files/{self.account}"
+        else:
+            self.auth_base_url = None
 
     def _propfind(self, path: str, depth: str = "1") -> list[str]:
         url = f"{self.public_base_url}/{path}".rstrip('/') + '/'
         headers = {'Depth': depth}
-        
+
         response = requests.request('PROPFIND', url, headers=headers)
         response.raise_for_status()
 
         root = ET.fromstring(response.content)
         namespaces = {'d': 'DAV:'}
-        
+
         paths = []
         for response_tag in root.findall('d:response', namespaces)[1:]:
             href = response_tag.find('d:href', namespaces).text
@@ -114,11 +116,11 @@ class CernboxProvider(StorageProvider):
     def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
         if not self.account or not self.password:
             raise ValueError("CERN account and password are required for uploading.")
-            
+
         clean_remote_path = remote_file_path.lstrip('/')
         url = f"{self.auth_base_url}/{clean_remote_path}"
-        
+
         with open(local_file_path, 'rb') as f:
             response = requests.put(url, data=f, auth=(self.account, self.password))
-            
+
         response.raise_for_status()
