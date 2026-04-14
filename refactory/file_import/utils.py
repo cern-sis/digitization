@@ -1,7 +1,7 @@
 import os
 import tempfile
 from urllib.parse import urlparse
-from storage_connection import CernboxProvider
+from .storage_connection import CernboxProvider
 
 
 def parse_cernbox_url(url: str) -> dict:
@@ -17,7 +17,6 @@ def parse_cernbox_url(url: str) -> dict:
         return {"public_link_hash": hash_code, "eos_path": None}
 
     elif "eos" in path:
-
         eos_path = "eos" + path.split("eos")[-1]
         return {"public_link_hash": None, "eos_path": eos_path}
 
@@ -67,6 +66,8 @@ def fetch_boite_files(url: str, output_dir: str = None) -> str:
             provider.download_to_temp(remote_file_path, local_path)
         except Exception as e:
             print(f"Failed to download {filename}: {e}")
-
-    print(f"Download complete. Files are located in: {output_dir}")
     return output_dir
+
+
+def transform_box_file_name(box_file):
+    return box_file.split(".")[0].upper().replace("-", "_")

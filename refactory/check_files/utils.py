@@ -2,11 +2,11 @@ import os
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
-def is_pdf_valid(file_path: str) -> bool:
+def validate_pdf(file_path: str) -> bool:
     """Checks if a local PDF is structurally valid and readable."""
     try:
         file_size = os.path.getsize(file_path)
-        if file_size < 100:  
+        if file_size < 100:
             return False
 
         with open(file_path, "rb") as f:
@@ -23,7 +23,7 @@ def is_pdf_valid(file_path: str) -> bool:
         if len(reader.pages) == 0:
             return False
 
-        _ = reader.pages[0] 
+        _ = reader.pages[0]
 
         return True
 

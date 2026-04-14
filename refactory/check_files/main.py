@@ -5,22 +5,22 @@ import sys
 import json
 from typing import Union
 from storage_connection import StorageProvider, S3Provider, CernboxProvider
-from validate_pdf import is_pdf_valid
+from .utils import validate_pdf
 
 
 def run_validation_pipeline(
     provider: StorageProvider,
     base_path: str,
     log_file: str,
-    inventory_source: Union[str, list[int]],
+    data_source: Union[str, list[int]],
     upload_reports: bool = False,
 
 ):
     """Navigates directories, validates files, and logs files status."""
     target_box_numbers = set()
-    if isinstance(inventory_source, str):
-        inventory_provider = CernboxProvider(inventory_source)
-        excel_files = inventory_provider.list_excel("")
+    if isinstance(data_source, str):
+        inventory_provider = CernboxProvider(data_source)
+        excel_files = inventory_provider.list_files("", '.xlsx')
 
         for file_path in excel_files:
             filename = file_path.split(".")[0]
@@ -29,8 +29,8 @@ def run_validation_pipeline(
 
             if match:
                 target_box_numbers.add(int(match.group(1)))
-    elif isinstance(inventory_source, list):
-        target_box_numbers = set(inventory_source)
+    elif isinstance(data_source, list):
+        target_box_numbers = set(data_source)
 
     print(f"Excel files: {len(target_box_numbers)} boxes to check.")
 
@@ -57,7 +57,7 @@ def run_validation_pipeline(
             continue
         print(f"Processing target Box: {match.group(1) + (match.group(2) or '')}")
 
-        pdf_files = provider.list_pdfs(folder)
+        pdf_files = provider.list_files(folder, 'PDF')
 
         if not pdf_files:
             print(f"⚠️ EMPTY FOLDER: {folder}")
@@ -69,7 +69,7 @@ def run_validation_pipeline(
             with tempfile.NamedTemporaryFile(delete=True) as tmp:
                 provider.download_to_temp(pdf_path, tmp.name)
 
-                if is_pdf_valid(tmp.name):
+                if validate_pdf(tmp.name):
                     valid_files.append(pdf_path)
                     print(f"  ✅ {pdf_path}")
                 else:
@@ -136,6 +136,6 @@ if __name__ == "__main__":
         provider=s3_provider,  # cernbox_provider
         base_path="cern-archives/raw/PDF/",  # "teste/",
         log_file="s3_pdf_issues.log",
-        inventory_source=sys.argv[1],  # public_link_hash
+        data_source=sys.argv[1],  # public_link_hash
         upload_reports=int(sys.argv[2])
     )
