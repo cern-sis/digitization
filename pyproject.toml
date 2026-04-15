@@ -9,11 +9,12 @@ python = "^3.12"
 pysftp = "^0.2.9"
 click = "^8.0.3"
 boto3 = "^1.38.9"
+requests = "^2.31.0"
+python-dotenv = "^1.0.0"
 pandas = "^2.2.3"
 openpyxl = "^3.1.5"
 tqdm = "^4.67.1"
-pypdf2 = "^3.0.1"
-dotenv = "^0.9.9"
+pypdf = "^6.9.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -21,3 +22,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 digitization = "digitization.cli:digitization"
+digitization_v2 = "refactory.cli:digitization_v2"

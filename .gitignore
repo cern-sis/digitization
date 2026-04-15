@@ -17,4 +17,4 @@ import_xml_files/
 # Virtual environments
 .venv
 
-
+s3_pdf_issues.json
