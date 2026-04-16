@@ -127,7 +127,7 @@ def file_match(data_source, base_path, output_path, file_types, bucket):
     CUSTOM_EXPIRATION = {
         # Example: uncomment the line below to test it
         # "PDF": 10,
-        "PDF_LATEX": 45
+        # "PDF_LATEX": 45
     }
 
     provider = S3Provider(bucket=bucket, custom_expiration=CUSTOM_EXPIRATION)

@@ -39,12 +39,7 @@ class S3Provider(StorageProvider):
         custom_expiration: dict = None,
     ):
         self.bucket = bucket
-        # self.s3 = boto3.client(
-        #     "s3",
-        #     aws_access_key_id=os.environ["ACCESS_KEY"],
-        #     aws_secret_access_key=os.environ["SECRET_KEY"],
-        #     endpoint_url=endpoint_url,
-        # )
+
         if os.environ["ACCESS_KEY"] and os.environ["SECRET_KEY"]:
                 print("Logging into s3 using credentials provided in enviroment variables")
                 self.s3 = boto3.client(
@@ -65,7 +60,7 @@ class S3Provider(StorageProvider):
             "TIFF": 30,
             "DEFAULT": 365,
         }
-        print("custom_expiration", custom_expiration, self.expiration_config)
+
         if custom_expiration:
             self.expiration_config.update(custom_expiration)
 

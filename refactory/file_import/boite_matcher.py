@@ -69,7 +69,7 @@ class BoiteS3Matcher:
         target_number = match.group(1)
 
         for filetype in self.file_types:
-            prefix = f"{self.base_path}{filetype}/BOITE_O0{target_number}"
+            prefix = f"{self.base_path}/{filetype}/BOITE_O0{target_number}"
             all_raw_keys = self.provider.list_files(prefix)
 
             valid_keys: list[str] = []
