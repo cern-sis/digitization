@@ -3,7 +3,6 @@ import re
 import os
 import sys
 import json
-from typing import Union
 from refactory.storage_connection import StorageProvider, S3Provider, CernboxProvider
 from .utils import validate_pdf
 
@@ -12,7 +11,7 @@ def run_validation_pipeline(
     provider: StorageProvider,
     base_path: str,
     log_file: str,
-    data_source: Union[str, list[int]],
+    data_source: str | list[int],
     upload_reports: bool = False,
 
 ):
