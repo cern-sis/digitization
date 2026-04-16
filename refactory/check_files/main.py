@@ -4,7 +4,7 @@ import os
 import sys
 import json
 from typing import Union
-from storage_connection import StorageProvider, S3Provider, CernboxProvider
+from refactory.storage_connection import StorageProvider, S3Provider, CernboxProvider
 from .utils import validate_pdf
 
 
@@ -19,8 +19,8 @@ def run_validation_pipeline(
     """Navigates directories, validates files, and logs files status."""
     target_box_numbers = set()
     if isinstance(data_source, str):
-        inventory_provider = CernboxProvider(data_source)
-        excel_files = inventory_provider.list_files("", '.xlsx')
+        data_source_provider = CernboxProvider(data_source)
+        excel_files = data_source_provider.list_files("", '.xlsx')
 
         for file_path in excel_files:
             filename = file_path.split(".")[0]

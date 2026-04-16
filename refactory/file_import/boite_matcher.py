@@ -15,12 +15,14 @@ class BoiteS3Matcher:
     def __init__(
         self,
         provider: StorageProvider,
+        base_path: str,
         data_source: str,
         output_path: str,
         file_types: list[str] | None = None,
     ):
         """Initializes the matcher with storage, data output, data path, and target file types."""
         self.provider = provider
+        self.base_path = Path(base_path)
         self.output_path = Path(output_path)
         self.output_path.mkdir(parents=True, exist_ok=True)
         self.file_types = file_types or ["PDF", "PDF_LATEX"]
@@ -40,9 +42,7 @@ class BoiteS3Matcher:
         lower_name = filename.lower()
         if lower_name.endswith("_latex.pdf"):
             return lower_name[:-10]
-        if lower_name.endswith(".pdf"):
-            return lower_name[:-4]
-        if lower_name.endswith((".tiff", ".tif")):
+        if lower_name.endswith((".pdf",".tiff", ".tif")):
             return lower_name.rsplit(".", 1)[0]
         return lower_name
 
@@ -69,13 +69,16 @@ class BoiteS3Matcher:
         target_number = match.group(1)
 
         for filetype in self.file_types:
-            prefix = f"cern-archives/raw/{filetype}/BOITE_O0{target_number}"
+            prefix = f"{self.base_path}{filetype}/BOITE_O0{target_number}"
             all_raw_keys = self.provider.list_files(prefix)
 
             valid_keys: list[str] = []
+
             for key in all_raw_keys:
-                folder_name = key.split("/")[-2]
-                s3_match = folder_pattern.fullmatch(folder_name)
+                if key.endswith("/"):
+                    continue
+
+                s3_match = folder_pattern.search(key)
 
                 if s3_match and s3_match.group(1) == target_number:
                     valid_keys.append(key)
@@ -117,7 +120,7 @@ class BoiteS3Matcher:
                         "application/pdf" if ftype in ["PDF", "PDF_LATEX"] else None
                     )
                     record_data[url_key] = self.provider.generate_presigned_url(
-                        matched_key, content_type
+                        matched_key, ftype, content_type
                     )
                     used_s3_keys[ftype].add(matched_key)
                 else:
@@ -148,21 +151,28 @@ class BoiteS3Matcher:
                 unused_s3 = s3_available_keys[ftype] - used_s3_keys[ftype]
 
                 for s3_key in unused_s3:
-                    s3_base = self._get_base_filename(s3_key.split("/")[-1])
+                    parts = s3_key.split("/")
+                    s3_base = self._get_base_filename(parts[-1])
                     s3_norm = self._normalize_for_comparison(s3_base)
 
-                    if boite_norm == s3_norm:
+                    folder_norm = ""
+
+                    if ftype == "PDF" and len(parts) > 1:
+                        folder_norm = self._normalize_for_comparison(parts[-2])
+
+                    if boite_norm == s3_norm or (ftype == "PDF" and boite_norm == folder_norm):
                         near_matches.append(
                             {
                                 "boite_record": missing_rec["record_name"],
                                 "suggested_s3_key": s3_key,
-                                "filetype": ftype,
+                                "filetype": ftype
                             }
                         )
 
         mismatch_data = {
             "boite_file": box_file,
             "s3_folder_name": boite_name_s3,
+            "total_in_boite_missing_in_s3": len(missing_in_boite),
             "mismatches": {
                 "in_boite_missing_in_s3": missing_in_s3,
                 "in_s3_missing_in_boite": missing_in_boite,

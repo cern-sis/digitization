@@ -1,9 +1,8 @@
 import click
 import ast
 from .check_files.main import run_validation_pipeline
-from storage_connection import S3Provider
+from refactory.storage_connection import S3Provider
 
-# Import the matcher we built earlier (adjust the path if your folder structure is different)
 from .file_import.boite_matcher import BoiteS3Matcher
 
 
@@ -54,7 +53,14 @@ def digitization_v2():
     show_default=True,
     help="S3 Bucket name.",
 )
-def validate_files_integrity(data_source, upload_reports, bucket):
+@click.option(
+    "-p",
+    "--base-path",
+    default="cern-archives/raw/PDF/",
+    show_default=True,
+    help="Base S3 path to validate.",
+)
+def validate_files_integrity(data_source, base_path, bucket, upload_reports):
     """
     Validates files integrity and inventory alignment.
     This command checks for corrupted files and missing boxes.
@@ -66,7 +72,7 @@ def validate_files_integrity(data_source, upload_reports, bucket):
     try:
         run_validation_pipeline(
             provider=provider,
-            base_path="cern-archives/raw/PDF/",
+            base_path=base_path,
             log_file="s3_pdf_issues.log",
             data_source=inventory_input,
             upload_reports=upload_reports,
@@ -76,13 +82,19 @@ def validate_files_integrity(data_source, upload_reports, bucket):
         click.secho(f"Error: {e}", fg="red", err=True)
 
 
-
 @digitization_v2.command("file-match")
 @click.option(
     "-d",
     "--data-source",
     required=True,
     help="Target data source. Supports a local directory path or a CERNBOX URL.",
+)
+@click.option(
+    "-p",
+    "--base-path",
+    default="cern-archives/raw/",
+    show_default=True,
+    help="Base S3 path to validate.",
 )
 @click.option(
     "-o",
@@ -105,12 +117,20 @@ def validate_files_integrity(data_source, upload_reports, bucket):
     show_default=True,
     help="S3 Bucket name.",
 )
-def file_match(data_source, output_path, file_types, bucket):
+
+def file_match(data_source, base_path, output_path, file_types, bucket):
     """
     Matches Boite Excel records against S3 files and generates JSON payloads.
     Generates a success JSON per Boite and a unified mismatch log.
     """
-    provider = S3Provider(bucket=bucket)
+
+    CUSTOM_EXPIRATION = {
+        # Example: uncomment the line below to test it
+        # "PDF": 10,
+        "PDF_LATEX": 45
+    }
+
+    provider = S3Provider(bucket=bucket, custom_expiration=CUSTOM_EXPIRATION)
 
     parsed_file_types = [t.strip() for t in file_types.split(",")]
 
@@ -121,6 +141,7 @@ def file_match(data_source, output_path, file_types, bucket):
     try:
         matcher = BoiteS3Matcher(
             provider=provider,
+            base_path=base_path,
             data_source=data_source,
             output_path=output_path,
             file_types=parsed_file_types,

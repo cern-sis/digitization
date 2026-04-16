@@ -1,6 +1,6 @@
 import tempfile
 import os
-from storage_connection import S3Provider, CernboxProvider
+from .storage_connection import S3Provider, CernboxProvider
 
 def test_s3():
     print("--- Testing AWS S3 connection ---")

@@ -1,7 +1,7 @@
 import os
 import tempfile
 from urllib.parse import urlparse
-from .storage_connection import CernboxProvider
+from ..storage_connection import CernboxProvider
 
 
 def parse_cernbox_url(url: str) -> dict:
