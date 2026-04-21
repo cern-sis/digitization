@@ -151,7 +151,7 @@ class CernboxProvider(StorageProvider):
         return paths
 
     def list_folders(self, base_path: str) -> list[str]:
-        pass
+        raise NotImplementedError("This method is not available for this storage type.")
 
     def list_files(self, folder_path: str, extension: str = None) -> list[str]:
         all_items = self._propfind(folder_path)
