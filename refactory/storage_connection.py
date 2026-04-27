@@ -130,11 +130,24 @@ class CernboxProvider(StorageProvider):
             )
             self.auth = (self.account, self.password)
 
+    def _build_eos_path(self, path: str) -> str:
+
+        clean_path = path.lstrip("/")
+
+        if clean_path.startswith("eos/"):
+            return clean_path
+
+        if self.account and not self.is_public:
+            initial = self.account[0].lower()
+            return f"eos/user/{initial}/{self.account}/{clean_path}"
+
+        return clean_path
+
     def _propfind(self, path: str, depth: str = "1") -> list[str]:
+        eos_path = self._build_eos_path(path)
+        url = f"{self.base_url}/{eos_path}/" if eos_path else f"{self.base_url}/"
 
-        url = f"{self.base_url}/{path}/" if path else f"{self.base_url}/"
         headers = {"Depth": depth}
-
         response = requests.request("PROPFIND", url, headers=headers, auth=self.auth)
         response.raise_for_status()
 
@@ -145,7 +158,6 @@ class CernboxProvider(StorageProvider):
         for response_tag in root.findall("d:response", namespaces)[1:]:
             href = response_tag.find("d:href", namespaces).text
             filename = href.rstrip("/").split("/")[-1]
-
             paths.append(filename)
 
         return paths
@@ -160,7 +172,8 @@ class CernboxProvider(StorageProvider):
         return all_items
 
     def download_to_temp(self, file_path: str, temp_file_path: str) -> None:
-        url = f"{self.base_url}/{file_path}"
+        eos_path = self._build_eos_path(file_path)
+        url = f"{self.base_url}/{eos_path}"
         response = requests.get(url, stream=True, auth=self.auth)
         response.raise_for_status()
 
@@ -168,18 +181,49 @@ class CernboxProvider(StorageProvider):
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-    def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
-        if self.is_public:
-            raise NotImplementedError("Error: CERN credentials required for updates.")
+    def create_folder(self, folder_path: str) -> None:
 
-        clean_remote_path = remote_file_path.strip("/")
-        url = f"{self.base_url}/{clean_remote_path}"
+        if self.is_public or not self.account or not self.password:
+            raise ValueError("Error: CERN credentials required to create folders.")
+
+        eos_path = self._build_eos_path(folder_path)
+        url = f"{self.base_url}/{eos_path}/"
+
+        response = requests.request("MKCOL", url, auth=self.auth)
+
+        if response.status_code not in (201, 405):
+
+            response.raise_for_status()
+
+    def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
+        """Faz o upload. Se a pasta não existir, o servidor retornará 409."""
+        if self.is_public or not self.account or not self.password:
+            raise ValueError(
+                "Error: CERN account and password are required for uploading."
+            )
+
+        eos_path = self._build_eos_path(remote_file_path)
+        url = f"{self.base_url}/{eos_path}"
 
         with open(local_file_path, "rb") as f:
             response = requests.put(url, data=f, auth=self.auth)
+        if response.status_code == 409:
+            clean_remote_path = remote_file_path.strip("/")
+            parent_dir = "/".join(clean_remote_path.split("/")[:-1])
+
+            if parent_dir:
+                self.create_folder(parent_dir)
+
+                with open(local_file_path, "rb") as retry_f:
+                    retry_response = requests.put(url, data=retry_f, auth=self.auth)
+
+                retry_response.raise_for_status()
+                return
+
         response.raise_for_status()
 
     def generate_presigned_url(
         self, file_key: str, content_type: str = None, expiration: int = None
     ) -> str:
-        return f"{self.base_url}/{file_key}"
+        eos_path = self._build_eos_path(file_key)
+        return f"{self.base_url}/{eos_path}"
