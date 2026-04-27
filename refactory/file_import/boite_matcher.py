@@ -23,7 +23,7 @@ class BoiteS3Matcher:
         """Initializes the matcher with storage, data output, data path, and target file types."""
         self.provider = provider
         self.base_path = Path(base_path)
-        self.output_path = Path(output_path)
+        self.output_path = Path(output_path)/'logs'
         self.output_path.mkdir(parents=True, exist_ok=True)
         self.file_types = file_types or ["PDF", "PDF_LATEX"]
         self.data_path = self._prepare_data_path(data_source)
