@@ -41,7 +41,6 @@ class S3Provider(StorageProvider):
         self.bucket = bucket
 
         if os.environ["ACCESS_KEY"] and os.environ["SECRET_KEY"]:
-                print("Logging into s3 using credentials provided in enviroment variables")
                 self.s3 = boto3.client(
                     "s3",
                     aws_access_key_id=os.environ["ACCESS_KEY"],
@@ -49,7 +48,6 @@ class S3Provider(StorageProvider):
                     endpoint_url=endpoint_url,
                 )
         else:
-                print("Using default s3 login without credentials")
                 self.s3 = boto3.client(
                     "s3",
                     endpoint_url=endpoint_url,
@@ -196,7 +194,6 @@ class CernboxProvider(StorageProvider):
             response.raise_for_status()
 
     def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
-        """Faz o upload. Se a pasta não existir, o servidor retornará 409."""
         if self.is_public or not self.account or not self.password:
             raise ValueError(
                 "Error: CERN account and password are required for uploading."

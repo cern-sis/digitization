@@ -1,3 +1,4 @@
+import re
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import tempfile
@@ -15,23 +16,34 @@ class XMLExporter:
         else:
             self.base_dir = Path(tempfile.mkdtemp(prefix="boite_xmls_"))
 
+    def _get_description_for_type(self, url_key: str) -> str:
+        base_type = url_key.replace("_url", "")
+        clean_type = re.sub(r"_\d{3,4}$", "", base_type)
+
+        type_mapping = {
+            "pdf": "Fulltext PDF",
+            "pdf_latex": "Fulltext PDF_LaTeX",
+            "pdf_ocr": "Fulltext PDF_OCR",
+            "pdf_transmis": "Fulltext PDF_TRANSMIS",
+            "tiff": "Fulltext TIFF",
+        }
+
+        return type_mapping.get(clean_type, f"Fulltext {clean_type.upper()}")
+
     def _build_record_element(self, root: ET.Element, record: dict) -> None:
         record_node = ET.SubElement(root, "record")
         ET.SubElement(record_node, "controlfield", tag="001").text = str(
             record.get("record_id", "")
         )
 
-        if record.get("pdf_url"):
-            df = ET.SubElement(record_node, "datafield", tag="FFT", ind1=" ", ind2=" ")
-            ET.SubElement(df, "subfield", code="a").text = record["pdf_url"]
-            ET.SubElement(df, "subfield", code="t").text = "Main"
-            ET.SubElement(df, "subfield", code="d").text = "Fulltext PDF"
+        for key, value in record.items():
+                if key.endswith("_url") and value:
+                    description = self._get_description_for_type(key)
 
-        if record.get("pdf_latex_url"):
-            df = ET.SubElement(record_node, "datafield", tag="FFT", ind1=" ", ind2=" ")
-            ET.SubElement(df, "subfield", code="a").text = record["pdf_latex_url"]
-            ET.SubElement(df, "subfield", code="t").text = "Main"
-            ET.SubElement(df, "subfield", code="d").text = "Fulltext PDF_LaTeX"
+                    df = ET.SubElement(record_node, "datafield", tag="FFT", ind1=" ", ind2=" ")
+                    ET.SubElement(df, "subfield", code="a").text =  value
+                    ET.SubElement(df, "subfield", code="t").text = "Main"
+                    ET.SubElement(df, "subfield", code="d").text = description
 
     def _save_to_disk(self, root: ET.Element, filename: str) -> str:
         """Converts element tree to XML file."""
@@ -49,7 +61,9 @@ class XMLExporter:
         valid_records_count = 0
 
         for rec in records:
-            if not rec.get("pdf_url") and not rec.get("pdf_latex_url"):
+            has_valid_url = any(key.endswith("_url") and val for key, val in rec.items())
+
+            if not has_valid_url:
                 continue
 
             self._build_record_element(root, rec)

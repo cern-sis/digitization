@@ -57,11 +57,12 @@ Use this command to match Boite Excel filenames with S3 objects, write structure
 
 ```bash
 poetry run digitization_v2 match-and-export \
-  -d "[https://cernbox.cern.ch/s/](https://cernbox.cern.ch/s/){hash}" \
-  -p "cern-archives/raw/" \
+  -d "https://cernbox.cern.ch/s/{hash}" \
+  -p "cern-archives/raw/CORRECTIONS_2,cern-archives/raw/" \
   -o ./results \
-  -f PDF,PDF_LATEX \
+  -f PDF, PDF_LATEX \
   -b digitization-dev \
+  -r \
   -x \
   -c
 ```
@@ -69,10 +70,12 @@ poetry run digitization_v2 match-and-export \
 **Options:**
 
 - `-d, --data-source` — local directory or CERNBox URL containing `.xlsx` Boite files.
-- `-p, --base-path` — Base S3 path (default: `cern-archives/raw/`).
+- `-p, --base-paths` — Comma-separated base S3 paths. Order defines priority (e.g., `CORRECTIONS_2` overrides standard `raw` folders) (default: `cern-archives/raw/`).
 - `-o, --output-path` — output directory for JSON/XML results (default: `./results`).
 - `-f, --file-types` — comma-separated list of file types to match (default: `PDF,PDF_LATEX`).
 - `-b, --bucket` — S3 bucket name (default: `digitization-dev`).
+- `-r, --report` — Display detailed run summary metrics (Total Matched/Unmatched) and listed missing records in the console.
+- `--dry-run` — Stop script execution after the matching phase. No XML generation or uploads will occur.
 - `-x, --generate-xml` — Generate XML files (FFT) for CDS upload.
 - `-c, --upload-cernbox` — Upload the generated XML files to CERNBox.
 - `--cernbox-path` — Target folder inside CERNBox for XML uploads (default: `xml_exports`).
@@ -83,12 +86,13 @@ The `match-and-export` flow:
 
 1. **Downloads** `.xlsx` Boite files from CERNBox if a URL is provided.
 2. **Reads** each Boite file and extracts the record ID and filename columns.
-3. **Searches** S3 under `<BASE_PATH><TYPE>/<BOITE>/`.
-4. **Matches** filenames case-insensitively. Supports both flat and subfolder layouts:
-   - *Flat:* `raw/PDF_LATEX/BOITE_O0125/ISR-LEP-RF-GG-ps.pdf`
-   - *Nested:* `raw/PDF/BOITE_O0125/LEP-RF-SH-ps/LEP-RF-SH-ps.pdf`
-5. **Generates** unified mismatch logs in JSON format for missing Boite rows and extra S3 files.
-6. **(Optional) Exports** matching records to XML files if the `-x` flag is used.
+3. **Searches** S3 under `<BASE_PATH>/<TYPE>/<BOITE>/`. If multiple base paths are provided, it respects **priority mapping** (preventing duplicates by prioritizing earlier paths).
+4. **Matches** filenames case-insensitively. Supports:
+   - *Flat layouts:* `raw/PDF_LATEX/BOITE_O0125/ISR-LEP-RF-GG-ps.pdf`
+   - *Nested subfolders:* `raw/PDF/BOITE_O0125/LEP-RF-SH-ps/LEP-RF-SH-ps.pdf`
+   - *Multi-page grouping:* Automatically groups multiple files (e.g., sequential TIFFs like `_001`, `_002`) under a single record ID dynamically.
+5. **Generates** unified mismatch logs in JSON format for missing Boite rows, extra S3 files, and calculates match/unmatch metrics per file.
+6. **(Optional) Exports** matching records to XML files if the `-x` flag is used. Generates XML `<datafield>` nodes dynamically based on all resolved file types (PDFs, TIFFs, OCRs).
 7. **(Optional) Uploads** the generated XMLs to a specified path in CERNBox if the `-c` flag is used.
 
 ---
@@ -155,5 +159,4 @@ export CERNBOX_PASSWORD="your_password"
 ## Notes
 
 - `file_import/boite_matcher.py` is the primary matcher used by `match-and-export`.
-- `test_connections.py` can be used to verify storage connectivity before running either workflow.
 - Use `poetry run digitization_v2 --help` to verify command names and options at runtime.
