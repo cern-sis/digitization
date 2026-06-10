@@ -9,7 +9,7 @@ from .utils import generate_s3_url, get_s3_client, get_s3_file_path, list_s3_fil
 def process_row(row, box_file, s3_client):
     record_id = str(row[0])
     record_name = str(row[1])
-    
+
 
     record_data = {
         'record_id': record_id,
@@ -43,9 +43,9 @@ def create_import_xml_files(data_path, output_path):
     s3_client = get_s3_client()
     xml_output_path = os.path.join(output_path, 'import_xml_files')
     os.makedirs(xml_output_path, exist_ok=True)
-    
+
     xml_files = []
-    
+
     for box_file in os.listdir(data_path):
         if not box_file.endswith('.xlsx'):
             continue
@@ -59,12 +59,12 @@ def create_import_xml_files(data_path, output_path):
         create_custom_xml(records_data, xml_path)
         xml_files.append(xml_path)
         print(f"✅ XML written: {xml_path}")
-    
+
     if xml_files:
         combined_xml_path = os.path.join(output_path, 'combined.xml')
         combine_xml_files(xml_files, combined_xml_path)
         print(f"✅ Combined XML written: {combined_xml_path}")
-    
+
 
 
 def get_matching_errors(boite_data_path, box_file, corrections_folder=False):

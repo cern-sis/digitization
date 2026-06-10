@@ -73,7 +73,7 @@ def check_s3_pdfs(bucket: str, base_prefix: str, start: int, end: int, log_file:
                         else:
                             print("❌ Corrupted")
                             log.write(f"Corrupted PDF: {key}\n")
-                            
+
 def check_pdf_latex_pdfs(bucket: str, base_prefix: str, start: int, end: int, log_file: str):
     """
     Check PDFs in PDF_LATEX/BOITE_O0XXX/ folders directly, and log corrupted files.

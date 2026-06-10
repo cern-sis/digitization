@@ -1,6 +1,6 @@
-# refactory
+# CERN Digitization
 
-This directory contains tools for validating PDF files, matching Boite Excel inventory records against S3 files, and optionally exporting the results to XML (FFT) for CDS upload.
+Validate PDF files, match Boite Excel inventory records against S3 files, and export the results to XML (FFT) for CDS upload. These tools can be executed either via a Command Line Interface (CLI) or orchestrated through Apache Airflow pipelines.
 
 ## Structure
 
@@ -14,24 +14,16 @@ This directory contains tools for validating PDF files, matching Boite Excel inv
 - `file_import/boite_matcher.py` - Boite-to-S3 matcher implementation used by `match-and-export`.
 - `file_import/xml_exporter.py` - XML generator (FFT) used for CDS batch uploads.
 
-## CLI usage
+## 1. CLI Usage (Local Execution)
 
-Run the refactory CLI from the repository root:
+Run the refactory CLI from the repository root using Poetry:
 
 ```bash
 poetry run digitization_v2 --help
 ```
 
-The available commands are:
-
-- `validate-files-integrity` — validate PDF integrity and inventory alignment.
-- `match-and-export` — match Boite Excel records against S3 files, generate JSON outputs, and optionally export/upload XMLs.
-
----
-
-## 1. Validate files integrity
-
-Use this command to check the Boite inventory against the PDF validation pipeline.
+### Command: validate-files-integrity
+Use this command to check the Boite inventory against the PDF validation pipeline locally.
 
 ```bash
 poetry run digitization_v2 validate-files-integrity \
@@ -41,26 +33,22 @@ poetry run digitization_v2 validate-files-integrity \
 ```
 
 **Options:**
-
 - `-d, --data-source` — Boite inventory source. Supports a CERNBox hash, range (`1..10`), or list (`[1,2]`).
 - `-u, --upload-reports` — upload validation reports back to storage.
 - `-b, --bucket` — S3 bucket name (default: `digitization-dev`).
 - `-p, --base-path` — Base S3 path (default: `cern-archives/raw/PDF/`).
 
-This command runs the validation pipeline and generates logs such as `s3_pdf_issues.log`.
-
 ---
 
-## 2. Match and Export (Boite-to-S3)
-
-Use this command to match Boite Excel filenames with S3 objects, write structured JSON outputs, and optionally generate and upload XML files for CDS.
+### Command: match-and-export
+Use this command to match Boite Excel filenames with S3 objects, write structured JSON outputs to the local results directory, and optionally generate/upload XML files.
 
 ```bash
 poetry run digitization_v2 match-and-export \
-  -d "https://cernbox.cern.ch/s/{hash}" \
+  -d "[https://cernbox.cern.ch/s/](https://cernbox.cern.ch/s/){hash}" \
   -p "cern-archives/raw/CORRECTIONS_2,cern-archives/raw/" \
   -o ./results \
-  -f PDF, PDF_LATEX \
+  -f PDF,PDF_LATEX \
   -b digitization-dev \
   -r \
   -x \
@@ -68,95 +56,85 @@ poetry run digitization_v2 match-and-export \
 ```
 
 **Options:**
-
 - `-d, --data-source` — local directory or CERNBox URL containing `.xlsx` Boite files.
-- `-p, --base-paths` — Comma-separated base S3 paths. Order defines priority (e.g., `CORRECTIONS_2` overrides standard `raw` folders) (default: `cern-archives/raw/`).
-- `-o, --output-path` — output directory for JSON/XML results (default: `./results`).
+- `-p, --base-paths` — Comma-separated base S3 paths. Order defines priority (default: `cern-archives/raw/`).
+- `-o, --output-path` — output directory for local JSON/XML results (default: `./results`).
 - `-f, --file-types` — comma-separated list of file types to match (default: `PDF,PDF_LATEX`).
 - `-b, --bucket` — S3 bucket name (default: `digitization-dev`).
-- `-r, --report` — Display detailed run summary metrics (Total Matched/Unmatched) and listed missing records in the console.
+- `-r, --report` — Display detailed run summary metrics and listed missing records in the console.
 - `--dry-run` — Stop script execution after the matching phase. No XML generation or uploads will occur.
 - `-x, --generate-xml` — Generate XML files (FFT) for CDS upload.
 - `-c, --upload-cernbox` — Upload the generated XML files to CERNBox.
 - `--cernbox-path` — Target folder inside CERNBox for XML uploads (default: `xml_exports`).
 
-### Matcher & Export behavior
-
-The `match-and-export` flow:
-
-1. **Downloads** `.xlsx` Boite files from CERNBox if a URL is provided.
-2. **Reads** each Boite file and extracts the record ID and filename columns.
-3. **Searches** S3 under `<BASE_PATH>/<TYPE>/<BOITE>/`. If multiple base paths are provided, it respects **priority mapping** (preventing duplicates by prioritizing earlier paths).
-4. **Matches** filenames case-insensitively. Supports:
-   - *Flat layouts:* `raw/PDF_LATEX/BOITE_O0125/ISR-LEP-RF-GG-ps.pdf`
-   - *Nested subfolders:* `raw/PDF/BOITE_O0125/LEP-RF-SH-ps/LEP-RF-SH-ps.pdf`
-   - *Multi-page grouping:* Automatically groups multiple files (e.g., sequential TIFFs like `_001`, `_002`) under a single record ID dynamically.
-5. **Generates** unified mismatch logs in JSON format for missing Boite rows, extra S3 files, and calculates match/unmatch metrics per file.
-6. **(Optional) Exports** matching records to XML files if the `-x` flag is used. Generates XML `<datafield>` nodes dynamically based on all resolved file types (PDFs, TIFFs, OCRs).
-7. **(Optional) Uploads** the generated XMLs to a specified path in CERNBox if the `-c` flag is used.
-
 ---
 
-## Dependencies
+## 2. Airflow Usage (Orchestrated Execution)
+### 🐳 Running Airflow via Docker
 
-This project uses Poetry to manage dependencies. The required libraries are listed in `pyproject.toml`.
-
-### Install dependencies with Poetry
-
+Run Docker Compose from the root directory containing your configuration deployment files:
 ```bash
-poetry install
+docker compose up -d
 ```
 
-### Main dependencies
+### Verify DAG Mounting
+Ensure that your local repository or specific domain directories (`common/`, `check_files/`, `file_import/`) are mapped as volumes inside your `docker-compose.yaml` to point to `/opt/airflow/dags/`. This guarantees changes in code are picked up by the Scheduler automatically.
 
-- `boto3`
-- `requests`
-- `pypdf`
-- `click`
+### Accessing the Control Panel
+Once the startup scripts finish loading the bundles, open your browser and access the Web UI:
+* **URL**: `http://localhost:8080`
+* **Default Credentials**: `airflow` / `airflow` (or your infrastructure environment profile keys).
 
----
+When deployed or running inside an Airflow environment, the execution parameters are managed via the Airflow Web UI configuration panel (*Trigger DAG w/ config*).
 
-## AWS Authentication
+Unlike the local CLI execution, the Airflow pipelines follow a strict cloud-native pattern:
+- **In-Memory Operations**: Processing is performed inside ephemeral temporary storage directories (`/tmp`).
+- **Server Disk Integrity**: Intermediate files are automatically purged at task completion, meaning the local `./results` folder is bypassed entirely.
+- **Unified Tracing**: Output is routed via standard Python `logging` for server visibility.
 
-`S3Provider` uses `boto3`. Configure credentials using environment variables or the default AWS config files:
+### DAG: match_and_export
+Coordinates index validation and automates delivery based on the selected execution mode dropdown parameters:
+1. `Dry Run`: Executes matching logic and uploads system audit logs back to S3. Stops before XML generation.
+2. `Generate XMLs (Temp Folder Only)`: Runs full match pipelines and instantiates the `XMLExporter` engine locally to validate formatting. Deletes artifacts before network transfer.
+3. `Full Export (CERNBox)`: Runs the entire pipeline, compiles individual and combined XML data arrays, and syncs them directly to the targeted folder inside CERNBox.
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-
-### Example environment variables
-
-```bash
-export ACCESS_KEY="YOUR_ACCESS_KEY"
-export SECRET_KEY="YOUR_SECRET_KEY"
-```
-
-### Supported alternatives
-
-- `~/.aws/credentials`
-- `~/.aws/config`
-- IAM role attached to an instance/container
-
-> `S3Provider` also supports the default endpoint `https://s3.cern.ch`, configured in `storage_connection.py`.
+### DAG: validate_files_integrity
+Scans designated storage paths in S3, checks the binary layout header of every PDF asset, and uploads an execution overview report.
 
 ---
 
-## CERNBox Authentication
+## Authentication & Credentials
 
-`CernboxProvider` reads optional credentials from environment variables:
+Depending on how you run the tools, credentials must be provided either via Local Environment Variables (for CLI) or registered via the Airflow Metadata Database (for Airflow).
 
-- `CERNBOX_USER`
-- `CERNBOX_PASSWORD`
+### 1. AWS Authentication
 
-### Example environment variables for CERNBox
+* **For CLI**: Configure your shell using standard variables or local files:
+  - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+  - Local configuration paths: `~/.aws/credentials` or `~/.aws/config`
+* **For Airflow**: Register an **Amazon Web Services** Connection ID named `aws_s3_cern` under `Admin -> Connections` (or ensure your Airflow Worker node inherits an appropriate IAM role configuration).
 
-```bash
-export CERNBOX_USER="your_username"
-export CERNBOX_PASSWORD="your_password"
-```
+> Note: `S3Provider` targets the default endpoint `https://s3.cern.ch` as defined in `storage_connection.py`.
 
+### 2. CERNBox Authentication
+`CernboxProvider` communicates over WebDAV APIs.
+
+* **For CLI**: Set the following variables before invoking the command root:
+  ```bash
+  export CERNBOX_USER="your_username"
+  export CERNBOX_PASSWORD="your_password"
+  ```
+* **For Airflow**: Register an **HTTP** Connection ID named `cernbox_conn` under `Admin -> Connections`:
+  - **Host**: `https://api.cernbox.cern.ch`
+  - **Login**: Your CERN computing ID
+  - **Password**: Your main password or an infrastructure-generated App Password.
 ---
 
-## Notes
+## Dependencies Management
 
-- `file_import/boite_matcher.py` is the primary matcher used by `match-and-export`.
-- Use `poetry run digitization_v2 --help` to verify command names and options at runtime.
+This project manages environment environments differently depending on your target execution context:
+
+* **Local Development (CLI)**: Managed via **Poetry**. The core workflow tools and deterministic lockfile configurations are defined inside `pyproject.toml`.
+* **Airflow Deployment (Docker)**: Managed via **`requirements.txt`**. When building or initializing the infrastructure via containerized stacks, the ecosystem installs and locks the application environment layer using this file.
+
+---
