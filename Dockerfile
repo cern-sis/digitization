@@ -1,21 +1,25 @@
-FROM python:3.12-slim
+FROM registry.cern.ch/cern-sis/base-images/apache/airflow:3.1.7-python3.11
 
-WORKDIR /code
+ENV PYTHONBUFFERED=0
+ENV AIRFLOW__LOGGING__LOGGING_LEVEL=INFO
 
-ENV PATH="/root/.poetry/bin:${PATH}"
+ENV PYTHONPATH="/opt/airflow/refactory:${PYTHONPATH}"
 
+USER root
 RUN apt-get update \
- && apt-get install -y kstart curl \
+ && apt-get install -y kstart \
  && apt-get clean \
- && rm -rf /var/lib/apt/lists/* \
- && curl -sSL https://install.python-poetry.org/ \
-  | python
+ && rm -rf /var/lib/apt/lists/*
 
-ENV PATH="/root/.local/bin:$PATH"
 
-RUN poetry --version
+USER airflow
 
-COPY poetry.lock pyproject.toml ./
-COPY digitization ./digitization
 
-RUN poetry install
+COPY airflow/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+
+COPY airflow/dags ./dags
+
+
+COPY refactory ./refactory

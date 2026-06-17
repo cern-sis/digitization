@@ -59,7 +59,7 @@ def generate_s3_url(bucket_name, file_key, pdf, expiration=31556952, s3_client=N
     }
     if pdf:
         params["ResponseContentType"] = "application/pdf"
-    
+
     return s3_client.generate_presigned_url(
             ClientMethod="get_object",
             Params=params,
@@ -93,17 +93,16 @@ def create_custom_xml(records_data, output_file_path):
 
 def combine_xml_files(xml_files, output_file_path):
     combined_collection = ET.Element("collection")
-    
+
     for xml_file in xml_files:
         tree = ET.parse(xml_file)
         root = tree.getroot()
         for record in root.findall('record'):
             combined_collection.append(record)
-    
+
     rough_string = ET.tostring(combined_collection, encoding="utf-8")
     reparsed = minidom.parseString(rough_string)
     pretty_xml = reparsed.toprettyxml(indent="    ")
-    
+
     with open(output_file_path, "w", encoding="utf-8") as f:
         f.write(pretty_xml)
-

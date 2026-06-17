@@ -5,7 +5,7 @@ description = ""
 authors = ["Harris Tzovanakis <me@drjova.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.11, <3.13"
 pysftp = "^0.2.9"
 click = "^8.0.3"
 boto3 = "^1.38.9"
@@ -23,3 +23,10 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 digitization = "digitization.cli:digitization"
 digitization_v2 = "refactory.cli:digitization_v2"
+
+[dependency-groups]
+dev = [
+    "apache-airflow (>=3.2.2,<4.0.0)",
+    "apache-airflow-providers-standard (>=1.13.1,<2.0.0)",
+    "apache-airflow-providers-amazon (>=9.29.0,<10.0.0)"
+]

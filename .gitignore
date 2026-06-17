@@ -18,3 +18,9 @@ import_xml_files/
 .venv
 
 s3_pdf_issues.json
+
+# Airflow
+logs/
+airflow.cfg
+airflow.db
+webserver_config.py
