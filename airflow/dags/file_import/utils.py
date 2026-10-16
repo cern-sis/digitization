@@ -1,27 +1,10 @@
 import os
 import tempfile
 import logging
-from urllib.parse import urlparse
 from common.storage_connection import CernboxProvider
+from common.utils import parse_cernbox_url
 
 logger = logging.getLogger(__name__)
-
-
-def parse_cernbox_url(url: str) -> dict:
-    parsed = urlparse(url)
-    path = parsed.path
-
-    if "/s/" in path:
-        hash_code = path.split("/s/")[-1].split("/")[0]
-        return {"public_link_hash": hash_code, "eos_path": None}
-    elif "public-files" in path:
-        hash_code = path.split("public-files/")[-1].split("/")[0]
-        return {"public_link_hash": hash_code, "eos_path": None}
-    elif "eos" in path:
-        eos_path = "eos" + path.split("eos")[-1]
-        return {"public_link_hash": None, "eos_path": eos_path}
-    else:
-        raise ValueError(f"Invalid CERNBox URL format: {url}")
 
 
 def fetch_boite_files(url: str, output_dir: str = None) -> str:

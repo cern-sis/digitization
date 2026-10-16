@@ -1,7 +1,9 @@
 import logging
 import re
 import tempfile
+from urllib.parse import urlparse
 from common.storage_connection import StorageProvider, CernboxProvider
+from common.utils import parse_cernbox_url
 from check_files.utils import validate_pdf
 
 
@@ -18,8 +20,14 @@ def resolve_target_boxes(data_source: str | list[int]) -> set[int]:
         and not data_source.replace(".", "").isdigit()
         and "[" not in data_source
     ):
-        data_source_provider = CernboxProvider(public_link_hash=data_source)
-        excel_files = data_source_provider.list_files("", ".xlsx")
+        if urlparse(data_source).scheme in {"http", "https"}:
+            parsed = parse_cernbox_url(data_source)
+            public_link_hash, target_path = parsed["public_link_hash"], parsed["eos_path"] or ""
+        else:
+            public_link_hash, target_path = data_source, ""
+
+        data_source_provider = CernboxProvider(public_link_hash=public_link_hash)
+        excel_files = data_source_provider.list_files(target_path, ".xlsx")
 
         for file_path in excel_files:
             filename = file_path.split(".")[0]

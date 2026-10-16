@@ -1,4 +1,6 @@
 import json
+import os
+import re
 import tempfile
 import logging
 from pathlib import Path
@@ -20,7 +22,9 @@ logger = logging.getLogger(__name__)
     tags=["digitization", "export", "xml"],
     params={
         "data_source": Param(
-            "", type="string", description="Local directory path or CERNBOX URL"
+            type="string",
+            minLength=1,
+            description="Local directory path or CERNBOX URL",
         ),
         "base_paths": Param(
             "cern-archives/raw/",
@@ -34,7 +38,7 @@ logger = logging.getLogger(__name__)
             "digitization-dev", type="string", description="Target S3 Bucket name"
         ),
         "execution_mode": Param(
-            "Full Export (CERNBox)",
+            "Dry Run",
             type="string",
             enum=[
                 "Dry Run",
@@ -86,7 +90,14 @@ def match_and_export_dag():
         )
         logger.info(summary)
 
-        logger.info("Uploading JSON mismatch logs back to S3...")
+        if params["execution_mode"] == "Dry Run":
+            logger.info(
+                "Dry-run mode active. Skipping mismatch log upload. Mismatch details:\n"
+                + json.dumps(all_mismatches, indent=2, ensure_ascii=False)
+            )
+            return results_map
+
+        logger.info("Uploading JSON mismatch logs to CERNBox...")
         with tempfile.NamedTemporaryFile(
             mode="w", delete=False, encoding="utf-8"
         ) as tmp_log:
@@ -97,9 +108,15 @@ def match_and_export_dag():
             )
             tmp_log_path = tmp_log.name
 
-        log_remote_path = f"{parsed_base_paths[0].rstrip('/')}/logs/all_boites_mismatches_{context['run_id']}.json"
-        provider.upload_file(tmp_log_path, log_remote_path)
-        logger.info(f"Mismatch logs saved to S3: {log_remote_path}")
+        safe_run_id = re.sub(r"[^A-Za-z0-9_.-]", "_", context["run_id"])
+        log_remote_path = f"{params['cernbox_path'].strip('/')}/all_boites_mismatches_{safe_run_id}.json"
+        try:
+            CernboxProvider().upload_file(tmp_log_path, log_remote_path)
+            logger.info(f"Mismatch logs saved to CERNBox: {log_remote_path}")
+        except Exception as e:
+            logger.warning(f"Mismatch log upload to CERNBox failed: {e}")
+        finally:
+            os.unlink(tmp_log_path)
 
         return results_map
 
@@ -144,6 +161,8 @@ def match_and_export_dag():
                     raise e
 
             logger.info("CERNBox sync complete.")
+        elif mode == "Full Export (CERNBox)":
+            logger.warning("No XML files were generated. Nothing uploaded to CERNBox.")
         else:
             logger.info(
                 "Execution Mode set to Temp Folder Only. Files generated successfully but NOT uploaded."

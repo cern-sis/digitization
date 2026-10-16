@@ -16,9 +16,9 @@ from check_files.validator import resolve_target_boxes, validate_s3_files
     tags=["digitization", "validation"],
     params={
         "data_source": Param(
-            "",
             type="string",
-            description="Inventory source (e.g., 1..1000, [1,2], or CERNBOX hash)",
+            minLength=1,
+            description="Inventory source (e.g., 1..1000, [1,2], CERNBox URL or hash)",
         ),
         "bucket": Param(
             "digitization-dev", type="string", description="Target S3 Bucket name"
@@ -53,7 +53,8 @@ def validation_dag():
     def perform_validation(target_boxes: list, **context):
         """Iterates through S3 and checks if PDFs are corrupted."""
         bucket = context["params"]["bucket"]
-        base_path = context["params"]["base_path"]
+        # list_folders uses Delimiter="/", so the prefix must end with "/" to list box folders.
+        base_path = context["params"]["base_path"].rstrip("/") + "/"
 
         provider = S3Provider(bucket=bucket)
 
