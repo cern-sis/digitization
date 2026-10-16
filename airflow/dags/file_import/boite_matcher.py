@@ -226,4 +226,7 @@ class BoiteS3Matcher:
                 results_map[box_file] = records
                 all_mismatches.append(mismatches)
 
+        if not results_map:
+            raise ValueError(f"No .xlsx Boite files found in {self.data_path}")
+
         return results_map, all_mismatches

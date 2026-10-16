@@ -48,8 +48,7 @@ def validate_s3_files(
 
     folders = provider.list_folders(base_path)
     if not folders:
-        logger.warning("No folders found in this path.")
-        return {"error": "No folders found in this path."}
+        raise ValueError(f"No folders found in S3 path: {base_path}")
 
     found_and_valid_boxes = set()
     corrupted_files = []

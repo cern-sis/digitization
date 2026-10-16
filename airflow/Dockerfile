@@ -17,6 +17,9 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 USER airflow
+ARG AIRFLOW_VERSION=3.1.7
+ARG PYTHON_VERSION=3.11
 
 COPY airflow/requirements.txt /requirements.txt
-RUN pip install --no-cache-dir -r /requirements.txt
+RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" -r /requirements.txt \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"

@@ -24,17 +24,16 @@ def fetch_boite_files(url: str, output_dir: str = None) -> str:
     try:
         xlsx_files = provider.list_files(target_path, extension=".xlsx")
     except Exception as e:
-        logger.error(f"Failed to access CERNBox. Error: {e}")
-        return output_dir
+        raise RuntimeError(f"Failed to access CERNBox at {url}: {e}") from e
 
     if not xlsx_files:
-        logger.warning("No .xlsx files found in the target directory.")
-        return output_dir
+        raise ValueError(f"No .xlsx files found at {url}")
 
     logger.info(
         f"Found {len(xlsx_files)} .xlsx files. Starting download to temp folder..."
     )
 
+    failed_downloads = []
     for filename in xlsx_files:
         local_path = os.path.join(output_dir, filename)
         remote_file_path = (
@@ -46,6 +45,13 @@ def fetch_boite_files(url: str, output_dir: str = None) -> str:
             provider.download_to_temp(remote_file_path, local_path)
         except Exception as e:
             logger.error(f"   ❌ Failed to download {filename}: {e}")
+            failed_downloads.append(filename)
+
+    if failed_downloads:
+        raise RuntimeError(
+            f"Failed to download {len(failed_downloads)} of {len(xlsx_files)} "
+            f".xlsx files: {failed_downloads}"
+        )
 
     return output_dir
 

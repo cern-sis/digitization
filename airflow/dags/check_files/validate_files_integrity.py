@@ -45,6 +45,8 @@ def validation_dag():
         inventory_input = parse_inventory(raw_data_source)
 
         targets = resolve_target_boxes(inventory_input)
+        if not targets:
+            raise ValueError(f"No boxes found for data_source: {raw_data_source}")
 
         print(f"{len(targets)} boxes for validation.")
         return list(targets)
@@ -68,8 +70,8 @@ def validation_dag():
         """Generates the JSON/TXT reports and uploads them securely to S3."""
         upload_toggle = context["params"]["upload_reports"]
 
-        if not upload_toggle or "error" in report:
-            print("Report upload skipped (Toggle is OFF or error occurred).")
+        if not upload_toggle:
+            print("Report upload skipped (Toggle is OFF).")
             return
 
         bucket = context["params"]["bucket"]
