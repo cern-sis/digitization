@@ -7,21 +7,28 @@ Airflow DAGs for the digitization workflows:
 | `validate_files_integrity` | Checks that the PDFs of the selected boxes in S3 can be opened (not corrupted). |
 | `match_and_export` | Matches the records in the box Excel files (`BOITE_O0<n>.xlsx`) with the files in S3, then builds the MARCXML files. |
 
+Airflow DAGs for the library notifications:
+
+| DAG | What it does |
+| --- | --- |
+| `library_newsletter` | Every Monday, emails the books/e-books added to the library catalogue in the previous week, grouped by topic. |
+
 ### Project layout
 
 Each project has its own folder in `dags/`:
 
 ```
 dags/
-└── digitization_workflows/   # digitization project
-    ├── common/               #   storage providers (S3, CERNBox) and helpers
-    ├── check_files/          #   validate_files_integrity
-    └── file_import/          #   match_and_export
+├── digitization_workflows/   # digitization project
+│   ├── common/               #   storage providers (S3, CERNBox) and helpers
+│   ├── check_files/          #   validate_files_integrity
+│   └── file_import/          #   match_and_export
+└── notifications/            # library notifications project (library_newsletter)
 ```
 
 The `dags/` folder is on the Python path, so imports start with the project folder, for example `from digitization_workflows.common.utils import parse_inventory`. The digitization folder is not called `digitization`, because that name would conflict with the `digitization` package at the root of the repository.
 
-The first tag of every DAG is its project (for example `digitization`). Use the tag filter in the DAG list to see the DAGs of one project. The other tags describe what the DAG does.
+The first tag of every DAG is its project (`digitization` or `notifications`). Use the tag filter in the DAG list to see the DAGs of one project. The other tags describe what the DAG does.
 
 ## Setup
 
@@ -36,14 +43,18 @@ docker compose up --build
 
 ### Connections
 
-The DAGs use two Airflow connections. Create them in **Admin → Connections**, or put them in `scripts/connections.json` and the bootstrap service imports them on startup.
+The DAGs use these Airflow connections. Create them in **Admin → Connections**, or put them in `scripts/connections.json` and the bootstrap service imports them on startup.
 
 | Conn ID | Type | Used for |
 | --- | --- | --- |
 | `aws_s3_cern` | Amazon Web Services (access key, secret key, `endpoint_url` in extra) | Reading and writing files in S3 |
 | `cernbox_conn` | HTTP (login = CERN account, password) | Uploading XMLs and logs to CERNBox |
+| `library_catalogue_conn` | HTTP (password = catalogue backoffice API token) | Reading the new items/e-items (`library_newsletter`) |
+| `newsletter_smtp` | SMTP (host `cernmx.cern.ch`, port `25`, no login; extra `{"to": "<recipients>", "from": "<sender>", "starttls": true}`) | Sending the newsletter (`library_newsletter`) |
 
 Public CERNBox links (used to read the box Excel files) need no credentials.
+
+`cernmx.cern.ch` is the CERN mail relay: it accepts emails without login from machines inside the CERN network.
 
 ---
 
@@ -122,3 +133,47 @@ Examples:
 Output in CERNBox (`<cernbox_path>/`):
 - One XML file per box, plus `Boites_combined.xml` (Full Export only)
 - `all_boites_mismatches_<run_id>.json`: the records that were not found in S3, and the S3 files that no record matched
+
+---
+
+## `library_newsletter`
+
+Runs every Monday at 09:00 Geneva time (summer and winter) for the previous Monday–Sunday week. Code: `dags/notifications/`.
+
+How it works:
+
+1. `get_newsletter_week`: picks the week: `week_start` if given, otherwise the full week before the day the run was scheduled or triggered. A scheduled run that is retried or cleared later still sends its own week.
+2. `fetch_new_documents`: gets the `document_pid` of the items and e-items created that week from the backoffice API (`/api/items`, `/api/eitems`), then their metadata from the public API (`/api/literature`). The creation date of the item is used, not of the document: a physical book's document is created when it is ordered, and its item when it arrives. Restricted documents are not returned by the public API.
+3. `build_newsletter`: groups the documents by topic from their subjects (UDC/Dewey prefixes, see `TOPICS` in `config.py`), and renders one email. A document with several topics appears under each of them. Documents without a matching topic go to `Other`. Every document is listed (as in the previous service).
+4. `send_newsletter`: sends the email, depending on `execution_mode`. Nothing is sent if there are no new documents.
+
+| Param | Default | Description |
+| --- | --- | --- |
+| `execution_mode` | `Send` | `Dry Run`: the email is only printed in the task logs. `Send`: the email is sent. |
+| `week_start` | *(empty)* | Monday (`YYYY-MM-DD`) of the week to send, for example to resend a past week. |
+
+The recipients are not a param: they are the `to` extra of the `newsletter_smtp` connection (comma-separated), so each environment sends to its own list:
+
+| Environment | `to` |
+| --- | --- |
+| QA | `test-library-newsletter@cern.ch` |
+| Production | `library-newsletter@cern.ch` |
+
+Scheduled runs use `Send`. To try the DAG locally without an SMTP connection, trigger it with `Dry Run`.
+
+To add a topic, add a line to `TOPICS` in `dags/notifications/config.py`. Two optional settings are also there, both off by default: a maximum number of documents per topic (`MAX_RESULTS_PER_TOPIC`, the rest is shown as `+ N more`) and a filter on the publication year (`PUBLICATION_YEARS_WINDOW`).
+
+Examples:
+
+```json
+{ "execution_mode": "Dry Run", "week_start": "2026-11-02" }
+{ "execution_mode": "Send", "week_start": "2026-11-02" }
+```
+
+### Tests
+
+From the repository root, with the dev dependencies installed (Airflow and `pytest`):
+
+```bash
+python -m pytest airflow/tests
+```
