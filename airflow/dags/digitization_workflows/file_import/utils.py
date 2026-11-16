@@ -1,8 +1,8 @@
 import os
 import tempfile
 import logging
-from common.storage_connection import CernboxProvider
-from common.utils import parse_cernbox_url
+from digitization_workflows.common.storage_connection import CernboxProvider
+from digitization_workflows.common.utils import parse_cernbox_url
 
 logger = logging.getLogger(__name__)
 

@@ -7,6 +7,22 @@ Airflow DAGs for the digitization workflows:
 | `validate_files_integrity` | Checks that the PDFs of the selected boxes in S3 can be opened (not corrupted). |
 | `match_and_export` | Matches the records in the box Excel files (`BOITE_O0<n>.xlsx`) with the files in S3, then builds the MARCXML files. |
 
+### Project layout
+
+Each project has its own folder in `dags/`:
+
+```
+dags/
+└── digitization_workflows/   # digitization project
+    ├── common/               #   storage providers (S3, CERNBox) and helpers
+    ├── check_files/          #   validate_files_integrity
+    └── file_import/          #   match_and_export
+```
+
+The `dags/` folder is on the Python path, so imports start with the project folder, for example `from digitization_workflows.common.utils import parse_inventory`. The digitization folder is not called `digitization`, because that name would conflict with the `digitization` package at the root of the repository.
+
+The first tag of every DAG is its project (for example `digitization`). Use the tag filter in the DAG list to see the DAGs of one project. The other tags describe what the DAG does.
+
 ## Setup
 
 Run these commands from the `airflow/` folder:

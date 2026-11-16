@@ -7,9 +7,12 @@ from pathlib import Path
 from datetime import datetime
 from airflow.sdk import dag, task, Param
 
-from common.storage_connection import S3Provider, CernboxProvider
-from file_import.boite_matcher import BoiteS3Matcher
-from file_import.xml_exporter import XMLExporter
+from digitization_workflows.common.storage_connection import (
+    S3Provider,
+    CernboxProvider,
+)
+from digitization_workflows.file_import.boite_matcher import BoiteS3Matcher
+from digitization_workflows.file_import.xml_exporter import XMLExporter
 
 logger = logging.getLogger(__name__)
 

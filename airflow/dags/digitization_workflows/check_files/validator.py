@@ -2,9 +2,12 @@ import logging
 import re
 import tempfile
 from urllib.parse import urlparse
-from common.storage_connection import StorageProvider, CernboxProvider
-from common.utils import parse_cernbox_url
-from check_files.utils import validate_pdf
+from digitization_workflows.common.storage_connection import (
+    StorageProvider,
+    CernboxProvider,
+)
+from digitization_workflows.common.utils import parse_cernbox_url
+from digitization_workflows.check_files.utils import validate_pdf
 
 
 

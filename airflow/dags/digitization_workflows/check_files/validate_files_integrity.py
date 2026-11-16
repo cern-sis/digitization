@@ -3,9 +3,12 @@ import tempfile
 from datetime import datetime
 from airflow.sdk import dag, task, Param
 
-from common.storage_connection import S3Provider
-from common.utils import parse_inventory
-from check_files.validator import resolve_target_boxes, validate_s3_files
+from digitization_workflows.common.storage_connection import S3Provider
+from digitization_workflows.common.utils import parse_inventory
+from digitization_workflows.check_files.validator import (
+    resolve_target_boxes,
+    validate_s3_files,
+)
 
 
 @dag(
