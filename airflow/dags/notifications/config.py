@@ -12,6 +12,9 @@ PUBLICATION_YEARS_WINDOW = None
 EMAIL_TITLE = "Latest books/e-books"
 EMAIL_FOOTER = "This is an automated message, please do not reply."
 
+SENT_HISTORY_VARIABLE = "library_newsletter_sent"
+SENT_HISTORY_DAYS = 60
+
 # (topic title, [(subject value prefix, subject scheme or None for any scheme)])
 TOPICS = [
     ("Administration/Management", [("65", None), ("005", "UDC")]),

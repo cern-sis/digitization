@@ -1,0 +1,14 @@
+{{ title }}
+New in the CERN Library catalogue, {{ period }}.
+{% for topic in topics %}
+
+{{ topic.title }}:
+{% for document in topic.documents %}
+- {{ document.title }}: {{ document.url }}
+{% endfor %}
+{% if topic.hidden %}
++ {{ topic.hidden }} more
+{% endif %}
+{% endfor %}
+
+{{ footer }}

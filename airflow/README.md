@@ -138,7 +138,7 @@ Output in CERNBox (`<cernbox_path>/`):
 
 ## `library_newsletter`
 
-Runs every Monday at 09:00 Geneva time (summer and winter) for the previous Monday–Sunday week. Code: `dags/notifications/`.
+Runs every Monday at 08:00 Geneva time (summer and winter) for the previous Monday–Sunday week. Code: `dags/notifications/`.
 
 How it works:
 
@@ -147,10 +147,13 @@ How it works:
 3. `build_newsletter`: groups the documents by topic from their subjects (UDC/Dewey prefixes, see `TOPICS` in `config.py`), and renders one email. A document with several topics appears under each of them. Documents without a matching topic go to `Other`. Every document is listed (as in the previous service).
 4. `send_newsletter`: sends the email, depending on `execution_mode`. Nothing is sent if there are no new documents.
 
+Each newsletter has a fixed `Message-ID` built from its week, for example `<library-newsletter-2026-11-09@cern.ch>`. After the SMTP server accepts the email, the `Message-ID` and the send time are saved in the `library_newsletter_sent` Variable (Admin → Variables). Before sending, the task checks this Variable and skips a newsletter that was already sent, so a retry or a cleared task does not send it twice. Entries older than 60 days (`SENT_HISTORY_DAYS` in `config.py`) are removed at each send. To send a week again, trigger the DAG with `force_resend`: the email gets its own `Message-ID` (for example `<library-newsletter-2026-11-09.resend-20261118T114503@cern.ch>`), so a retry of the resend is also detected. Dry Run does not use the Variable.
+
 | Param | Default | Description |
 | --- | --- | --- |
 | `execution_mode` | `Send` | `Dry Run`: the email is only printed in the task logs. `Send`: the email is sent. |
 | `week_start` | *(empty)* | Monday (`YYYY-MM-DD`) of the week to send, for example to resend a past week. |
+| `force_resend` | `false` | Sends the newsletter even if it was already sent. |
 
 The recipients are not a param: they are the `to` extra of the `newsletter_smtp` connection (comma-separated), so each environment sends to its own list:
 
@@ -161,13 +164,14 @@ The recipients are not a param: they are the `to` extra of the `newsletter_smtp`
 
 Scheduled runs use `Send`. To try the DAG locally without an SMTP connection, trigger it with `Dry Run`.
 
-To add a topic, add a line to `TOPICS` in `dags/notifications/config.py`. Two optional settings are also there, both off by default: a maximum number of documents per topic (`MAX_RESULTS_PER_TOPIC`, the rest is shown as `+ N more`) and a filter on the publication year (`PUBLICATION_YEARS_WINDOW`).
+The email layout is in the Jinja2 templates `dags/notifications/templates/newsletter.html` and `newsletter.txt` (plain text version). To add a topic, add a line to `TOPICS` in `dags/notifications/config.py`. Two optional settings are also there, both off by default: a maximum number of documents per topic (`MAX_RESULTS_PER_TOPIC`, the rest is shown as `+ N more`) and a filter on the publication year (`PUBLICATION_YEARS_WINDOW`).
 
 Examples:
 
 ```json
 { "execution_mode": "Dry Run", "week_start": "2026-11-02" }
 { "execution_mode": "Send", "week_start": "2026-11-02" }
+{ "execution_mode": "Send", "week_start": "2026-11-02", "force_resend": true }
 ```
 
 ### Tests

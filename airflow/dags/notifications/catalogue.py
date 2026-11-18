@@ -73,18 +73,18 @@ class LibraryCatalogue:
             "size": config.ITEMS_PAGE_SIZE,
         }
 
-        pids = []
+        pids = set()
         for url in (config.ITEMS_API, config.EITEMS_API):
             count = 0
             for hit in self._iter_hits(url, params, headers=self.headers):
                 count += 1
                 pid = hit.get("metadata", {}).get("document_pid")
-                if pid and pid not in pids:
-                    pids.append(pid)
-            logger.info(f"   -> {count} records created in {url}")
+                if pid:
+                    pids.add(pid)
+            logger.info("   -> %d records created in %s", count, url)
 
-        logger.info(f"Found {len(pids)} documents with new items/e-items.")
-        return pids
+        logger.info("Found %d documents with new items/e-items.", len(pids))
+        return sorted(pids)
 
     def fetch_documents(
         self,
@@ -109,6 +109,8 @@ class LibraryCatalogue:
             )
 
         logger.info(
-            f"Retrieved {len(documents)} of {len(pids)} documents from the public catalogue."
+            "Retrieved %d of %d documents from the public catalogue.",
+            len(documents),
+            len(pids),
         )
         return documents

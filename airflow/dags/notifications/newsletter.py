@@ -1,9 +1,19 @@
 """Group the new documents by topic and build the newsletter content."""
 
 from datetime import date, timedelta
-from html import escape
+from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from notifications import config
+
+templates = Environment(
+    loader=FileSystemLoader(Path(__file__).parent / "templates"),
+    autoescape=select_autoescape(["html"]),
+    trim_blocks=True,
+    lstrip_blocks=True,
+    keep_trailing_newline=True,
+)
 
 
 def classify(document: dict, topics=config.TOPICS) -> list[str]:
@@ -74,30 +84,36 @@ def _shown_and_hidden(docs: list[dict], limit: int = None):
     return docs[:limit], max(len(docs) - limit, 0)
 
 
+def _template_context(
+    groups: dict[str, list[dict]], start: date, end: date, limit: int
+) -> dict:
+    topics = []
+    for title, docs in groups.items():
+        shown, hidden = _shown_and_hidden(docs, limit)
+        documents = [
+            {
+                "title": doc.get("title", ""),
+                "url": config.DOCUMENT_URL.format(pid=doc["pid"]),
+            }
+            for doc in shown
+        ]
+        topics.append({"title": title, "documents": documents, "hidden": hidden})
+    return {
+        "title": config.EMAIL_TITLE,
+        "period": _period_label(start, end),
+        "footer": config.EMAIL_FOOTER,
+        "topics": topics,
+    }
+
+
 def render_html(
     groups: dict[str, list[dict]],
     start: date,
     end: date,
     limit: int = config.MAX_RESULTS_PER_TOPIC,
 ) -> str:
-    parts = [
-        f"<h2>{escape(config.EMAIL_TITLE)}</h2>",
-        f"<p>New in the CERN Library catalogue, {escape(_period_label(start, end))}.</p>",
-    ]
-    for title, docs in groups.items():
-        shown, hidden = _shown_and_hidden(docs, limit)
-        parts.append(f"<h3>{escape(title)}</h3>")
-        parts.append("<ul>")
-        for doc in shown:
-            url = config.DOCUMENT_URL.format(pid=doc["pid"])
-            parts.append(
-                f'<li><a href="{escape(url)}">{escape(doc.get("title", ""))}</a></li>'
-            )
-        if hidden:
-            parts.append(f"<li>+ {hidden} more</li>")
-        parts.append("</ul>")
-    parts.append(f"<p><small>{escape(config.EMAIL_FOOTER)}</small></p>")
-    return "\n".join(parts) + "\n"
+    context = _template_context(groups, start, end, limit)
+    return templates.get_template("newsletter.html").render(context)
 
 
 def render_text(
@@ -106,18 +122,5 @@ def render_text(
     end: date,
     limit: int = config.MAX_RESULTS_PER_TOPIC,
 ) -> str:
-    lines = [
-        config.EMAIL_TITLE,
-        f"New in the CERN Library catalogue, {_period_label(start, end)}.",
-    ]
-    for title, docs in groups.items():
-        shown, hidden = _shown_and_hidden(docs, limit)
-        lines += ["", f"{title}:"]
-        lines += [
-            f"- {doc.get('title', '')}: {config.DOCUMENT_URL.format(pid=doc['pid'])}"
-            for doc in shown
-        ]
-        if hidden:
-            lines.append(f"+ {hidden} more")
-    lines += ["", config.EMAIL_FOOTER]
-    return "\n".join(lines) + "\n"
+    context = _template_context(groups, start, end, limit)
+    return templates.get_template("newsletter.txt").render(context)

@@ -150,3 +150,11 @@ def test_render_lists_everything_without_limit():
     assert html.count("<li><a ") == 30
     assert "more" not in html
     assert text.count("\n- ") == 30
+
+
+def test_render_text_is_not_html_escaped():
+    groups = {"Physics": [doc("p1", "Quarks & <Leptons>")]}
+
+    text = newsletter.render_text(groups, START, END)
+
+    assert "- Quarks & <Leptons>: " in text

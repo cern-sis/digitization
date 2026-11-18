@@ -1,0 +1,14 @@
+<h2>{{ title }}</h2>
+<p>New in the CERN Library catalogue, {{ period }}.</p>
+{% for topic in topics %}
+<h3>{{ topic.title }}</h3>
+<ul>
+{% for document in topic.documents %}
+<li><a href="{{ document.url }}">{{ document.title }}</a></li>
+{% endfor %}
+{% if topic.hidden %}
+<li>+ {{ topic.hidden }} more</li>
+{% endif %}
+</ul>
+{% endfor %}
+<p><small>{{ footer }}</small></p>
