@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .utils import fetch_boite_files, transform_box_file_name
-from common.storage_connection import StorageProvider
+from digitization_workflows.common.storage_connection import StorageProvider
 
 logger = logging.getLogger(__name__)
 
