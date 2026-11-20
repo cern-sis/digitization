@@ -1,8 +1,9 @@
-CATALOGUE_URL = "https://catalogue.library.cern"
-ITEMS_API = f"{CATALOGUE_URL}/api/items/"
-EITEMS_API = f"{CATALOGUE_URL}/api/eitems/"
-LITERATURE_API = f"{CATALOGUE_URL}/api/literature/"
-DOCUMENT_URL = f"{CATALOGUE_URL}/literature/{{pid}}"
+# Same catalogue access as the BI DAGs (bi-dags): the catalogue URL is the host of the
+# connection, and the backoffice API token is in an Airflow Variable.
+CATALOGUE_CONN_ID = "library_catalog_conn"
+CATALOGUE_TOKEN_VARIABLE = "CATALOG_API_TOKEN"
+# Only used to warn when the connection points to another catalogue (e.g. the sandbox).
+PRODUCTION_CATALOGUE_URL = "https://catalogue.library.cern"
 
 ITEMS_PAGE_SIZE = 100
 PID_CHUNK_SIZE = 40

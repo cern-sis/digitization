@@ -49,8 +49,10 @@ The DAGs use these Airflow connections. Create them in **Admin → Connections**
 | --- | --- | --- |
 | `aws_s3_cern` | Amazon Web Services (access key, secret key, `endpoint_url` in extra) | Reading and writing files in S3 |
 | `cernbox_conn` | HTTP (login = CERN account, password) | Uploading XMLs and logs to CERNBox |
-| `library_catalogue_conn` | HTTP (password = catalogue backoffice API token) | Reading the new items/e-items (`library_newsletter`) |
+| `library_catalog_conn` | HTTP (host = catalogue URL). Same connection as the BI DAGs. | Reading the new items/e-items and their documents (`library_newsletter`) |
 | `newsletter_smtp` | SMTP (host `cernmx.cern.ch`, port `25`, no login; extra `{"to": "<recipients>", "from": "<sender>", "starttls": true}`) | Sending the newsletter (`library_newsletter`) |
+
+The catalogue backoffice API token is not in the connection: it is the `CATALOG_API_TOKEN` Variable (**Admin → Variables**), as for the BI DAGs.
 
 Public CERNBox links (used to read the box Excel files) need no credentials.
 
@@ -163,6 +165,24 @@ The recipients are not a param: they are the `to` extra of the `newsletter_smtp`
 | Production | `library-newsletter@cern.ch` |
 
 Scheduled runs use `Send`. To try the DAG locally without an SMTP connection, trigger it with `Dry Run`.
+
+#### Catalogue: sandbox or production
+
+The DAG reads the catalogue of the `library_catalog_conn` connection, shared with the BI DAGs:
+
+| Environment | Host of `library_catalog_conn` |
+| --- | --- |
+| Local and dev | `https://sandbox-cds-ils.web.cern.ch/` (sandbox) |
+| Production | `https://catalogue.library.cern` |
+
+The sandbox gets almost no new documents, so locally and in dev the newsletter is usually empty or lists test records. The task logs show a warning when the catalogue is not the production one.
+
+To test the newsletter with real data, locally or in dev, change it **temporarily**:
+
+1. In **Admin → Connections**, set the host of `library_catalog_conn` to `https://catalogue.library.cern`.
+2. In **Admin → Variables**, set `CATALOG_API_TOKEN` to a **production** token. A sandbox token does not work on the production catalogue.
+3. Trigger the DAG with `Dry Run`.
+4. Put back the sandbox host and token. In dev, the BI DAGs use the same connection and Variable, so they also read production until then.
 
 The email layout is in the Jinja2 templates `dags/notifications/templates/newsletter.html` and `newsletter.txt` (plain text version). To add a topic, add a line to `TOPICS` in `dags/notifications/config.py`. Two optional settings are also there, both off by default: a maximum number of documents per topic (`MAX_RESULTS_PER_TOPIC`, the rest is shown as `+ N more`) and a filter on the publication year (`PUBLICATION_YEARS_WINDOW`).
 
