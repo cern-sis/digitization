@@ -161,10 +161,16 @@ The recipients are not a param: they are the `to` extra of the `newsletter_smtp`
 
 | Environment | `to` |
 | --- | --- |
-| QA | `test-library-newsletter@cern.ch` |
-| Production | `library-newsletter@cern.ch` |
+| QA (dev) | A temporary test group, currently `test-library-newsletter@cern.ch` (see below) |
+| Production | `library-newsletter@cern.ch`, the real newsletter list |
 
-Scheduled runs use `Send`. To try the DAG locally without an SMTP connection, trigger it with `Dry Run`.
+Scheduled runs use `Send`. To try the DAG without an SMTP connection, trigger it with `Dry Run`.
+
+To test `Send` without emailing the subscribers of `library-newsletter@cern.ch`, send to a test group instead:
+
+1. Create a test group in [CERN Groups](https://groups-portal.web.cern.ch) with the people who need to check the email. Test groups are temporary: CERN Groups removes them after some time, so the QA group may need to be created again.
+2. Set its address as the `to` extra of `newsletter_smtp`.
+3. Trigger the DAG with `Send`.
 
 #### Catalogue: sandbox or production
 
