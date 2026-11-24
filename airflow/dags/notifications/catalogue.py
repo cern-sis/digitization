@@ -4,7 +4,7 @@ import logging
 from datetime import date
 
 import requests
-from airflow.sdk import BaseHook
+from airflow.sdk import BaseHook, Variable
 
 from notifications import config
 
@@ -43,18 +43,44 @@ class LibraryCatalogue:
        ``document_pid`` of the items/e-items created in the period;
     2. the public ``/api/literature`` gives the metadata of those documents
        (restricted documents are not returned).
+
+    By default it uses the same access as the BI DAGs: the URL is the host of the
+    ``library_catalog_conn`` connection and the token is the ``CATALOG_API_TOKEN``
+    Variable.
     """
 
     def __init__(
         self,
+        base_url: str = None,
         token: str = None,
-        conn_id: str = "library_catalogue_conn",
+        conn_id: str = config.CATALOGUE_CONN_ID,
         session: requests.Session = None,
     ):
+        if base_url is None:
+            base_url = BaseHook.get_connection(conn_id).host
+        if not base_url:
+            raise ValueError(f"Set the catalogue URL in the host of '{conn_id}'.")
         if token is None:
-            token = BaseHook.get_connection(conn_id).password
+            token = Variable.get(config.CATALOGUE_TOKEN_VARIABLE)
+
+        self.base_url = base_url.rstrip("/")
+        self.items_api = f"{self.base_url}/api/items/"
+        self.eitems_api = f"{self.base_url}/api/eitems/"
+        self.literature_api = f"{self.base_url}/api/literature/"
         self.headers = {"Authorization": f"Bearer {token}"}
         self.session = session or requests.Session()
+
+        logger.info("Catalogue: %s", self.base_url)
+        if self.base_url != config.PRODUCTION_CATALOGUE_URL:
+            logger.warning(
+                "%s is not the production catalogue (%s): the newsletter will not "
+                "list the real new documents.",
+                self.base_url,
+                config.PRODUCTION_CATALOGUE_URL,
+            )
+
+    def document_url(self, pid: str) -> str:
+        return f"{self.base_url}/literature/{pid}"
 
     def _iter_hits(self, url: str, params: dict, headers: dict = None):
         next_url, next_params = url, params
@@ -74,7 +100,7 @@ class LibraryCatalogue:
         }
 
         pids = set()
-        for url in (config.ITEMS_API, config.EITEMS_API):
+        for url in (self.items_api, self.eitems_api):
             count = 0
             for hit in self._iter_hits(url, params, headers=self.headers):
                 count += 1
@@ -103,10 +129,10 @@ class LibraryCatalogue:
         for i in range(0, len(pids), config.PID_CHUNK_SIZE):
             chunk = pids[i : i + config.PID_CHUNK_SIZE]
             params = {"q": pid_query(chunk) + year_filter, "size": len(chunk)}
-            documents.extend(
-                summarize_document(hit)
-                for hit in self._iter_hits(config.LITERATURE_API, params)
-            )
+            for hit in self._iter_hits(self.literature_api, params):
+                document = summarize_document(hit)
+                document["url"] = self.document_url(document["pid"])
+                documents.append(document)
 
         logger.info(
             "Retrieved %d of %d documents from the public catalogue.",

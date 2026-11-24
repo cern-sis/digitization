@@ -10,6 +10,7 @@ START, END = date(2026, 11, 2), date(2026, 11, 9)
 def doc(pid, title="Title", subjects=()):
     return {
         "pid": pid,
+        "url": f"https://catalogue.library.cern/literature/{pid}",
         "title": title,
         "subjects": [{"value": value, "scheme": scheme} for value, scheme in subjects],
     }

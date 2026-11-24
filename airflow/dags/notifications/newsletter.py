@@ -93,7 +93,7 @@ def _template_context(
         documents = [
             {
                 "title": doc.get("title", ""),
-                "url": config.DOCUMENT_URL.format(pid=doc["pid"]),
+                "url": doc["url"],
             }
             for doc in shown
         ]

@@ -4,6 +4,15 @@ import pytest
 
 from notifications import catalogue, config
 
+BASE_URL = "https://catalogue.library.cern"
+ITEMS_API = f"{BASE_URL}/api/items/"
+EITEMS_API = f"{BASE_URL}/api/eitems/"
+LITERATURE_API = f"{BASE_URL}/api/literature/"
+
+
+def client_with(session, token="t"):
+    return catalogue.LibraryCatalogue(base_url=BASE_URL, token=token, session=session)
+
 
 class FakeResponse:
     def __init__(self, body, status=200):
@@ -77,13 +86,13 @@ def test_fetch_new_document_pids_follows_pagination_and_dedupes():
     next_items = "https://catalogue.library.cern/api/items/?page=2"
     session = FakeSession(
         {
-            config.ITEMS_API: [page([item("d1"), item("d2")], next_url=next_items)],
+            ITEMS_API: [page([item("d1"), item("d2")], next_url=next_items)],
             next_items: [page([item("d2"), {"metadata": {}}])],
-            config.EITEMS_API: [page([item("d3"), item("d1")])],
+            EITEMS_API: [page([item("d3"), item("d1")])],
         }
     )
 
-    client = catalogue.LibraryCatalogue(token="secret", session=session)
+    client = client_with(session, token="secret")
     pids = client.fetch_new_document_pids(date(2026, 11, 2), date(2026, 11, 9))
 
     assert pids == ["d1", "d2", "d3"]
@@ -101,11 +110,11 @@ def test_fetch_new_document_pids_follows_pagination_and_dedupes():
 
 
 def test_fetch_new_document_pids_raises_on_http_error():
-    session = FakeSession({config.ITEMS_API: [FakeResponse({}, status=401)]})
+    session = FakeSession({ITEMS_API: [FakeResponse({}, status=401)]})
     with pytest.raises(RuntimeError):
-        catalogue.LibraryCatalogue(
-            token="bad", session=session
-        ).fetch_new_document_pids(date(2026, 11, 2), date(2026, 11, 9))
+        client_with(session, token="bad").fetch_new_document_pids(
+            date(2026, 11, 2), date(2026, 11, 9)
+        )
 
 
 def test_fetch_documents_chunks_pids_and_sets_page_size(monkeypatch):
@@ -113,14 +122,14 @@ def test_fetch_documents_chunks_pids_and_sets_page_size(monkeypatch):
     subjects = [{"scheme": "UDC", "value": "53"}]
     session = FakeSession(
         {
-            config.LITERATURE_API: [
+            LITERATURE_API: [
                 page([literature_hit("p1", subjects=subjects), literature_hit("p2")]),
                 page([literature_hit("p3")]),
             ]
         }
     )
 
-    client = catalogue.LibraryCatalogue(token="t", session=session)
+    client = client_with(session)
     documents = client.fetch_documents(["p1", "p2", "p3"], years_window=None)
 
     assert [c["params"] for c in session.calls] == [
@@ -133,14 +142,15 @@ def test_fetch_documents_chunks_pids_and_sets_page_size(monkeypatch):
         "document_type": "BOOK",
         "publication_year": "2024",
         "subjects": subjects,
+        "url": f"{BASE_URL}/literature/p1",
     }
     assert [d["pid"] for d in documents] == ["p1", "p2", "p3"]
 
 
 def test_fetch_documents_with_publication_year_filter():
-    session = FakeSession({config.LITERATURE_API: [page([])]})
+    session = FakeSession({LITERATURE_API: [page([])]})
 
-    catalogue.LibraryCatalogue(token="t", session=session).fetch_documents(
+    client_with(session).fetch_documents(
         ["p1"], years_window=5, today=date(2026, 11, 9)
     )
 
@@ -151,19 +161,57 @@ def test_fetch_documents_with_publication_year_filter():
 
 def test_fetch_documents_without_pids_makes_no_request():
     session = FakeSession({})
-    client = catalogue.LibraryCatalogue(token="t", session=session)
+    client = client_with(session)
     assert client.fetch_documents([]) == []
     assert session.calls == []
 
 
-def test_token_comes_from_airflow_connection(monkeypatch):
-    class FakeConnection:
-        password = "from-connection"
+class FakeConnection:
+    def __init__(self, host):
+        self.host = host
 
-    monkeypatch.setattr(
-        catalogue.BaseHook, "get_connection", lambda conn_id: FakeConnection()
-    )
+
+def use_bi_access(monkeypatch, host, token="from-variable"):
+    """Fakes the BI connection (URL in the host) and the token Variable."""
+    asked = {}
+
+    def get_connection(conn_id):
+        asked["conn_id"] = conn_id
+        return FakeConnection(host)
+
+    def get_variable(key):
+        asked["variable"] = key
+        return token
+
+    monkeypatch.setattr(catalogue.BaseHook, "get_connection", get_connection)
+    monkeypatch.setattr(catalogue.Variable, "get", get_variable)
+    return asked
+
+
+def test_url_from_bi_connection_and_token_from_variable(monkeypatch, caplog):
+    asked = use_bi_access(monkeypatch, "https://catalogue.library.cern/")
 
     client = catalogue.LibraryCatalogue(session=FakeSession({}))
 
-    assert client.headers == {"Authorization": "Bearer from-connection"}
+    assert asked == {"conn_id": "library_catalog_conn", "variable": "CATALOG_API_TOKEN"}
+    assert client.base_url == BASE_URL
+    assert client.items_api == ITEMS_API
+    assert client.document_url("abc") == f"{BASE_URL}/literature/abc"
+    assert client.headers == {"Authorization": "Bearer from-variable"}
+    assert "not the production catalogue" not in caplog.text
+
+
+def test_warns_when_the_connection_is_not_the_production_catalogue(monkeypatch, caplog):
+    use_bi_access(monkeypatch, "https://sandbox-cds-ils.web.cern.ch/")
+
+    client = catalogue.LibraryCatalogue(session=FakeSession({}))
+
+    assert client.items_api == "https://sandbox-cds-ils.web.cern.ch/api/items/"
+    assert "not the production catalogue" in caplog.text
+
+
+def test_connection_without_host_raises(monkeypatch):
+    use_bi_access(monkeypatch, "")
+
+    with pytest.raises(ValueError, match="library_catalog_conn"):
+        catalogue.LibraryCatalogue(session=FakeSession({}))
