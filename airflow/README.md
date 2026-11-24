@@ -161,7 +161,7 @@ The recipients are not a param: they are the `to` extra of the `newsletter_smtp`
 
 | Environment | `to` |
 | --- | --- |
-| QA (dev) | A temporary test group, currently `test-library-newsletter@cern.ch` (see below) |
+| QA (dev) | A temporary test group, currently `library-newsletter-test@cern.ch` (see below) |
 | Production | `library-newsletter@cern.ch`, the real newsletter list |
 
 Scheduled runs use `Send`. To try the DAG without an SMTP connection, trigger it with `Dry Run`.
