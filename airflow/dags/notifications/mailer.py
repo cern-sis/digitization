@@ -6,6 +6,7 @@ import smtplib
 from datetime import date, datetime, timedelta
 from email.message import EmailMessage
 
+from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook, Variable
 
 from notifications import config
@@ -65,6 +66,16 @@ class SmtpMailer:
             # Failing here would retry the task and send the email again.
             logger.warning("Email sent, but the SMTP connection did not close cleanly.")
         logger.info("Email sent.")
+
+
+def unsubscribe_url(conn_id: str = "newsletter_smtp") -> str | None:
+    """The `unsubscribe_url` extra of the SMTP connection. None if it is not set, or
+    if the connection does not exist (Dry Run without SMTP connection)."""
+    try:
+        conn = BaseHook.get_connection(conn_id)
+    except AirflowNotFoundException:
+        return None
+    return conn.extra_dejson.get("unsubscribe_url") or None
 
 
 def message_id(week_start: date, sender: str, resend_at: datetime = None) -> str:

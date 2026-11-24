@@ -12,3 +12,6 @@
 </ul>
 {% endfor %}
 <p><small>{{ footer }}</small></p>
+{% if unsubscribe_url %}
+<p><small><a href="{{ unsubscribe_url }}">Unsubscribe here / Se désabonner ici</a></small></p>
+{% endif %}

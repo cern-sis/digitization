@@ -50,7 +50,7 @@ The DAGs use these Airflow connections. Create them in **Admin → Connections**
 | `aws_s3_cern` | Amazon Web Services (access key, secret key, `endpoint_url` in extra) | Reading and writing files in S3 |
 | `cernbox_conn` | HTTP (login = CERN account, password) | Uploading XMLs and logs to CERNBox |
 | `library_catalog_conn` | HTTP (host = catalogue URL). Same connection as the BI DAGs. | Reading the new items/e-items and their documents (`library_newsletter`) |
-| `newsletter_smtp` | SMTP (host `cernmx.cern.ch`, port `25`, no login; extra `{"to": "<recipients>", "from": "<sender>", "starttls": true}`) | Sending the newsletter (`library_newsletter`) |
+| `newsletter_smtp` | SMTP (host `cernmx.cern.ch`, port `25`, no login; extra `{"to": "<recipients>", "from": "<sender>", "starttls": true, "unsubscribe_url": "<optional>"}`) | Sending the newsletter (`library_newsletter`) |
 
 The catalogue backoffice API token is not in the connection: it is the `CATALOG_API_TOKEN` Variable (**Admin → Variables**), as for the BI DAGs.
 
@@ -163,6 +163,8 @@ The recipients are not a param: they are the `to` extra of the `newsletter_smtp`
 | --- | --- |
 | QA (dev) | A temporary test group, currently `library-newsletter-test@cern.ch` (see below) |
 | Production | `library-newsletter@cern.ch`, the real newsletter list |
+
+To add an unsubscribe link at the end of the email, set the `unsubscribe_url` extra of `newsletter_smtp`, for example to the page of the list in [CERN Groups](https://groups-portal.web.cern.ch). Without it, the email has no unsubscribe link.
 
 Scheduled runs use `Send`. To try the DAG without an SMTP connection, trigger it with `Dry Run`.
 

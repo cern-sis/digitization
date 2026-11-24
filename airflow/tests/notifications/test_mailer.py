@@ -208,3 +208,28 @@ def test_history_is_stored_as_json_in_the_variable(monkeypatch):
 
     assert stored[config.SENT_HISTORY_VARIABLE][1] is True
     assert mailer.load_history() == {"<id@cern.ch>": "2026-11-16T08:00:12+01:00"}
+
+
+@pytest.mark.parametrize(
+    "extra, expected",
+    [
+        ({"unsubscribe_url": "https://groups.cern/x"}, "https://groups.cern/x"),
+        ({"unsubscribe_url": ""}, None),
+        ({}, None),
+    ],
+)
+def test_unsubscribe_url_from_the_smtp_connection(monkeypatch, extra, expected):
+    monkeypatch.setattr(
+        mailer.BaseHook,
+        "get_connection",
+        lambda conn_id: FakeConnection("cernmx.cern.ch", 25, extra=extra),
+    )
+    assert mailer.unsubscribe_url() == expected
+
+
+def test_unsubscribe_url_without_smtp_connection(monkeypatch):
+    def missing(conn_id):
+        raise mailer.AirflowNotFoundException(conn_id)
+
+    monkeypatch.setattr(mailer.BaseHook, "get_connection", missing)
+    assert mailer.unsubscribe_url() is None
