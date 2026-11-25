@@ -69,11 +69,16 @@ def library_newsletter_dag():
 
         start, end = (date.fromisoformat(period[k]) for k in ("start", "end"))
         groups = newsletter.group_by_topic(documents)
+        unsubscribe_url = mailer.unsubscribe_url()
 
         return {
             "subject": newsletter.build_subject(start, end),
-            "html": newsletter.render_html(groups, start, end),
-            "text": newsletter.render_text(groups, start, end),
+            "html": newsletter.render_html(
+                groups, start, end, unsubscribe_url=unsubscribe_url
+            ),
+            "text": newsletter.render_text(
+                groups, start, end, unsubscribe_url=unsubscribe_url
+            ),
         }
 
     @task(task_id="send_newsletter")

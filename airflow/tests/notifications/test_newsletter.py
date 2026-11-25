@@ -159,3 +159,31 @@ def test_render_text_is_not_html_escaped():
     text = newsletter.render_text(groups, START, END)
 
     assert "- Quarks & <Leptons>: " in text
+
+
+def test_render_adds_the_unsubscribe_link_when_set():
+    groups = {"Physics": [doc("p1", "Quarks")]}
+    url = "https://groups-portal.web.cern.ch/group/library-newsletter"
+
+    html = newsletter.render_html(groups, START, END, unsubscribe_url=url)
+    text = newsletter.render_text(groups, START, END, unsubscribe_url=url)
+
+    assert html.endswith(
+        f'<p><small><a href="{url}">Unsubscribe here / Se désabonner ici</a>'
+        "</small></p>\n"
+    )
+    assert text.endswith(
+        "This is an automated message, please do not reply.\n"
+        f"Unsubscribe here / Se désabonner ici: {url}\n"
+    )
+
+
+def test_render_without_unsubscribe_link():
+    groups = {"Physics": [doc("p1", "Quarks")]}
+
+    for rendered in (
+        newsletter.render_html(groups, START, END),
+        newsletter.render_text(groups, START, END),
+    ):
+        assert "Unsubscribe" not in rendered
+        assert "désabonner" not in rendered

@@ -12,3 +12,6 @@ New in the CERN Library catalogue, {{ period }}.
 {% endfor %}
 
 {{ footer }}
+{% if unsubscribe_url %}
+Unsubscribe here / Se désabonner ici: {{ unsubscribe_url }}
+{% endif %}

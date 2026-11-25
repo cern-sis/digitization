@@ -85,7 +85,11 @@ def _shown_and_hidden(docs: list[dict], limit: int = None):
 
 
 def _template_context(
-    groups: dict[str, list[dict]], start: date, end: date, limit: int
+    groups: dict[str, list[dict]],
+    start: date,
+    end: date,
+    limit: int,
+    unsubscribe_url: str = None,
 ) -> dict:
     topics = []
     for title, docs in groups.items():
@@ -102,6 +106,7 @@ def _template_context(
         "title": config.EMAIL_TITLE,
         "period": _period_label(start, end),
         "footer": config.EMAIL_FOOTER,
+        "unsubscribe_url": unsubscribe_url,
         "topics": topics,
     }
 
@@ -111,8 +116,9 @@ def render_html(
     start: date,
     end: date,
     limit: int = config.MAX_RESULTS_PER_TOPIC,
+    unsubscribe_url: str = None,
 ) -> str:
-    context = _template_context(groups, start, end, limit)
+    context = _template_context(groups, start, end, limit, unsubscribe_url)
     return templates.get_template("newsletter.html").render(context)
 
 
@@ -121,6 +127,7 @@ def render_text(
     start: date,
     end: date,
     limit: int = config.MAX_RESULTS_PER_TOPIC,
+    unsubscribe_url: str = None,
 ) -> str:
-    context = _template_context(groups, start, end, limit)
+    context = _template_context(groups, start, end, limit, unsubscribe_url)
     return templates.get_template("newsletter.txt").render(context)
