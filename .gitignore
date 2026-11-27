@@ -24,3 +24,7 @@ logs/
 airflow.cfg
 airflow.db
 webserver_config.py
+
+# Local Airflow connections and variables (contain credentials)
+scripts/connections.json
+scripts/variables.json

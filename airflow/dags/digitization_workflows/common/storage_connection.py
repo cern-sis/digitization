@@ -79,6 +79,22 @@ class S3Provider(StorageProvider):
     def upload_file(self, local_file_path: str, remote_file_path: str) -> None:
         self.s3.upload_file(local_file_path, self.bucket, remote_file_path)
 
+    def open_stream(self, file_key: str):
+        """Body stream and size of an object, to copy it without a temporary file."""
+        response = self.s3.get_object(Bucket=self.bucket, Key=file_key)
+        return response["Body"], response["ContentLength"]
+
+    def move_file(self, source_key: str, destination_key: str) -> None:
+        """S3 has no move: copies the object, then deletes the original.
+
+        The original is kept if the copy fails. `copy` is a managed transfer, so
+        it also works for objects larger than 5 GB.
+        """
+        self.s3.copy(
+            {"Bucket": self.bucket, "Key": source_key}, self.bucket, destination_key
+        )
+        self.s3.delete_object(Bucket=self.bucket, Key=source_key)
+
     def generate_presigned_url(
         self, file_key: str, file_type: str, content_type: str = None
     ) -> str:
