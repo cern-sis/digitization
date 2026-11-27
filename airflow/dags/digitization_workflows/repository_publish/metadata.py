@@ -10,6 +10,11 @@ CREATION_DATE_TYPE = "Creation"
 YEAR_PATTERN = re.compile(r"\b(1[5-9]\d{2}|20\d{2})\b")
 EDTF_DATE_PATTERN = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
 
+# The "CERN Archives" scheme of repository.cern (`is_archive` in cds-rdm). CDS links
+# the identifier to https://archives.cern.ch/index.php/<identifier in lowercase>.
+ARCHIVE_SCHEME = "archive"
+ARCHIVE_PATTERN = re.compile(r"^CERN-ARCH(?:-[A-Z0-9]+)+$", flags=re.IGNORECASE)
+
 
 class MissingDateError(ValueError):
     """The AtoM description has no date to use as the publication date."""
@@ -93,6 +98,36 @@ def _description(description: dict) -> str | None:
     return "<br>".join(_as_html(part) for part in parts) or None
 
 
+def archive_identifier(slug: str) -> str | None:
+    """`cern-arch-test-002` -> `CERN-ARCH-TEST-002`, or None for another slug.
+
+    The slug, not the reference code, so that the CDS link is the AtoM URL of the
+    slug. In upper case, because the search of repository.cern is case-sensitive.
+    """
+    identifier = slug.upper()
+    return identifier if ARCHIVE_PATTERN.match(identifier) else None
+
+
+def description_identifiers(slug: str, atom_url: str) -> list[str]:
+    """The identifiers that link a record to the AtoM description.
+
+    The AtoM URL is there for the records created before the CERN Archives scheme.
+    """
+    return [
+        identifier for identifier in (archive_identifier(slug), atom_url) if identifier
+    ]
+
+
+def _atom_link(slug: str, atom_url: str) -> dict:
+    identifier = archive_identifier(slug)
+    return {
+        "identifier": identifier or atom_url,
+        "scheme": ARCHIVE_SCHEME if identifier else "url",
+        "relation_type": {"id": "isdescribedby"},
+        "resource_type": {"id": "other"},
+    }
+
+
 def atom_to_rdm(
     description: dict,
     slug: str,
@@ -102,8 +137,9 @@ def atom_to_rdm(
 ) -> dict:
     """The record to create on repository.cern for the AtoM description.
 
-    The AtoM URL is stored as a related identifier: it is how the DAG finds the
-    record again on the next runs.
+    The link to AtoM is a related identifier (CERN Archives scheme, or the AtoM URL
+    for a slug that is not a CERN-ARCH code): it is how the DAG finds the record
+    again on the next runs.
     """
     metadata = {
         "resource_type": {"id": resource_type},
@@ -111,14 +147,7 @@ def atom_to_rdm(
         "publication_date": publication_date(description.get("dates")),
         "creators": _creators(description),
         "publisher": publisher,
-        "related_identifiers": [
-            {
-                "identifier": atom_url,
-                "scheme": "url",
-                "relation_type": {"id": "isdescribedby"},
-                "resource_type": {"id": "other"},
-            }
-        ],
+        "related_identifiers": [_atom_link(slug, atom_url)],
     }
     text = _description(description)
     if text:
@@ -131,19 +160,27 @@ def atom_to_rdm(
     }
 
 
-def merge_metadata(current: dict, mapped: dict) -> dict:
+def merge_metadata(
+    current: dict, mapped: dict, replaced: list[str] | tuple = ()
+) -> dict:
     """The metadata of a published record, refreshed from AtoM.
 
     The fields that `atom_to_rdm` maps are replaced. The other fields, for example
-    subjects added by a curator, are kept. The related identifiers are merged, so
-    that the AtoM URL is there and the other identifiers are kept.
+    subjects added by a curator, are kept. In the related identifiers, the link to
+    AtoM is replaced (as well as the `replaced` identifiers, e.g. the AtoM URL of
+    older records), and the others are kept.
     """
-    merged = {**current, **mapped}
-    current_related = current.get("related_identifiers", [])
-    known = {item.get("identifier") for item in current_related}
-    merged["related_identifiers"] = [*current_related] + [
+    mapped_related = mapped.get("related_identifiers", [])
+    same = {_lower(i) for i in replaced} | {
+        _lower(item.get("identifier")) for item in mapped_related
+    }
+    kept = [
         item
-        for item in mapped.get("related_identifiers", [])
-        if item.get("identifier") not in known
+        for item in current.get("related_identifiers", [])
+        if _lower(item.get("identifier")) not in same
     ]
-    return merged
+    return {**current, **mapped, "related_identifiers": kept + list(mapped_related)}
+
+
+def _lower(identifier: object) -> str:
+    return str(identifier or "").lower()

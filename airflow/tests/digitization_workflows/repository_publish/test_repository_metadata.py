@@ -128,6 +128,76 @@ def test_description_is_escaped_html():
     )
 
 
+ARCHIVE_URL = "https://archives.cern.ch/index.php/cern-arch-test-002"
+
+
+def test_a_cern_arch_slug_is_linked_with_the_cern_archives_scheme():
+    """CDS shows it as "CERN Archives" and links it to the AtoM URL of the slug."""
+    record = metadata.atom_to_rdm(
+        description(), slug="cern-arch-test-002", atom_url=ARCHIVE_URL
+    )
+
+    assert record["metadata"]["related_identifiers"] == [
+        {
+            "identifier": "CERN-ARCH-TEST-002",
+            "scheme": "archive",
+            "relation_type": {"id": "isdescribedby"},
+            "resource_type": {"id": "other"},
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "slug, expected",
+    [
+        ("cern-arch-test-002", "CERN-ARCH-TEST-002"),
+        ("CERN-ARCH-CM-1954-01", "CERN-ARCH-CM-1954-01"),
+        ("council-minutes-1954", None),
+        ("cern-arch", None),
+        ("cern-arch-a_b", None),
+    ],
+)
+def test_archive_identifier(slug, expected):
+    assert metadata.archive_identifier(slug) == expected
+
+
+def test_description_identifiers_include_the_url_of_older_records():
+    """Records created before the CERN Archives scheme have the AtoM URL."""
+    assert metadata.description_identifiers("cern-arch-test-002", ARCHIVE_URL) == [
+        "CERN-ARCH-TEST-002",
+        ARCHIVE_URL,
+    ]
+    assert metadata.description_identifiers("council-minutes-1954", ATOM_URL) == [
+        ATOM_URL
+    ]
+
+
+def test_merge_metadata_replaces_the_old_atom_url_with_the_archive_identifier():
+    current = {
+        "related_identifiers": [related("https://cds.cern.ch/1"), related(ARCHIVE_URL)]
+    }
+    archive = {"identifier": "CERN-ARCH-TEST-002", "scheme": "archive"}
+
+    merged = metadata.merge_metadata(
+        current,
+        {"related_identifiers": [archive]},
+        replaced=["CERN-ARCH-TEST-002", ARCHIVE_URL],
+    )
+
+    assert merged["related_identifiers"] == [related("https://cds.cern.ch/1"), archive]
+
+
+def test_merge_metadata_replaces_an_identifier_typed_in_another_case():
+    archive = {"identifier": "CERN-ARCH-TEST-002", "scheme": "archive"}
+    typed = {"identifier": "cern-arch-test-002", "scheme": "archive"}
+
+    merged = metadata.merge_metadata(
+        {"related_identifiers": [typed]}, {"related_identifiers": [archive]}
+    )
+
+    assert merged["related_identifiers"] == [archive]
+
+
 def related(identifier):
     return {"identifier": identifier, "scheme": "url"}
 

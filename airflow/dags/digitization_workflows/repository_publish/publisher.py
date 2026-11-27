@@ -30,6 +30,7 @@ from digitization_workflows.repository_publish.http import HttpError
 from digitization_workflows.repository_publish.metadata import (
     MissingDateError,
     atom_to_rdm,
+    description_identifiers,
     merge_metadata,
 )
 
@@ -250,7 +251,10 @@ def _refresh(repo, record: dict, description: dict, slug: str, atom_url: str, se
     if settings.is_dry_run:
         return record, RecordUpdate.WOULD_REFRESH
     record = repo.edit_published_record(
-        record["id"], lambda current: merge_metadata(current, mapped["metadata"])
+        record["id"],
+        lambda current: merge_metadata(
+            current, mapped["metadata"], description_identifiers(slug, atom_url)
+        ),
     )
     return record, RecordUpdate.REFRESHED
 
@@ -273,7 +277,10 @@ def _replace_file(repo, s3, record, description, slug, atom_url, s3_key, setting
     mapped = atom_to_rdm(description, slug, atom_url, settings.resource_type)
     key = posixpath.basename(s3_key)
     draft = repo.new_version(
-        record["id"], lambda current: merge_metadata(current, mapped["metadata"])
+        record["id"],
+        lambda current: merge_metadata(
+            current, mapped["metadata"], description_identifiers(slug, atom_url)
+        ),
     )
     try:
         _upload_from_s3(repo, s3, draft["id"], key, s3_key)
@@ -305,7 +312,7 @@ def _update_record(repo, s3, record, description, slug, atom_url, s3_key, settin
 
 def _update_linked(slug, s3_key, s3, repo, description, atom_url, settings) -> dict:
     """AtoM is already linked: only the record can be updated, not the AtoM link."""
-    record = repo.find_record(atom_url)
+    record = repo.find_record(*description_identifiers(slug, atom_url))
     if not (record and record.get("is_published")):
         logger.warning("%s: no published record to update.", slug)
         return result(slug, s3_key, Status.ALREADY_LINKED, record)
@@ -335,7 +342,7 @@ def _publish(slug, s3_key, s3, atom, repo, settings, can_deposit) -> dict:
             )
         return result(slug, s3_key, Status.ALREADY_LINKED)
 
-    record = repo.find_record(atom_url)
+    record = repo.find_record(*description_identifiers(slug, atom_url))
     new_deposit = record is None
     update = None
 

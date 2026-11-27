@@ -84,24 +84,26 @@ class RepositoryClient:
     def community_id(self, slug: str) -> str:
         return self._json("GET", f"/communities/{_key(slug)}")["id"]
 
-    def find_record(self, identifier: str) -> dict | None:
-        """The record with this related identifier: published first, then our drafts.
+    def find_record(self, *identifiers: str) -> dict | None:
+        """The record with one of these related identifiers: published first, then
+        our drafts.
 
         The search index is updated a few seconds after a write: run the DAG again
         only after the previous run has finished.
         """
-        if '"' in identifier or "\\" in identifier:
-            raise ValueError(f"Invalid identifier: {identifier!r}")
-        params = {
-            "q": f'metadata.related_identifiers.identifier:"{identifier}"',
-            "size": 2,
-        }
+        if not identifiers:
+            raise ValueError("find_record needs an identifier.")
+        for identifier in identifiers:
+            if '"' in identifier or "\\" in identifier:
+                raise ValueError(f"Invalid identifier: {identifier!r}")
+        quoted = " OR ".join(f'"{identifier}"' for identifier in identifiers)
+        params = {"q": f"metadata.related_identifiers.identifier:({quoted})", "size": 2}
         for path in ("/records", "/user/records"):
             found = self._json("GET", path, params=params)["hits"]["hits"]
             if len(found) > 1:
                 logger.warning(
                     "Several records for %s: %s. Using the first one, remove the others.",
-                    identifier,
+                    " or ".join(identifiers),
                     [record.get("id") for record in found],
                 )
             if found:

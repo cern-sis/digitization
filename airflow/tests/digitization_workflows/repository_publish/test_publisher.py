@@ -55,8 +55,9 @@ class FakeRepository:
         self.accept_error = accept_error
         self.writes = []
 
-    def find_record(self, identifier):
-        return self.existing.get(identifier)
+    def find_record(self, *identifiers):
+        self.searched = identifiers
+        return next((self.existing[i] for i in identifiers if i in self.existing), None)
 
     def create_draft(self, record):
         self.writes.append(("create_draft", record))
@@ -917,3 +918,29 @@ def test_other_accept_errors_still_fail():
     row = run(FakeAtom({"a-slug": DESCRIPTION}), repo, auto_accept=True)
 
     assert row["status"] == Status.ERROR
+
+
+ARCHIVE_SLUG = "cern-arch-test-002"
+ARCHIVE_URL = f"{ATOM_BASE}/{ARCHIVE_SLUG}"
+
+
+def test_a_record_created_with_the_atom_url_is_found_and_moved_to_the_archive_scheme():
+    """Older records have the AtoM URL; a refresh replaces it with CERN Archives."""
+    repo = FakeRepository(existing={ARCHIVE_URL: published_record()})
+    atom = FakeAtom({ARCHIVE_SLUG: {**DESCRIPTION, "digital_object": {"url": "x"}}})
+
+    row = publisher.publish_slug(
+        ARCHIVE_SLUG,
+        f"raw/{ARCHIVE_SLUG}.pdf",
+        FakeS3(),
+        atom,
+        repo,
+        settings(refresh_metadata=True),
+    )
+
+    assert repo.searched == ("CERN-ARCH-TEST-002", ARCHIVE_URL)
+    assert row["record_update"] == "refreshed"
+    [(_, _, new_metadata)] = repo.writes
+    assert [
+        (r["identifier"], r["scheme"]) for r in new_metadata["related_identifiers"]
+    ] == [("CERN-ARCH-TEST-002", "archive")]

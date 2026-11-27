@@ -11,7 +11,7 @@ BASE_URL = "https://repository.cern"
 API = f"{BASE_URL}/api"
 DRAFT = f"{API}/records/abc-123/draft"
 ATOM_URL = "https://archives.cern.ch/index.php/a-slug"
-QUERY = f'metadata.related_identifiers.identifier:"{ATOM_URL}"'
+QUERY = f'metadata.related_identifiers.identifier:("{ATOM_URL}")'
 
 
 def client_with(session):
@@ -70,6 +70,21 @@ def test_find_record_returns_none(fake_session, response):
     )
 
     assert client_with(session).find_record(ATOM_URL) is None
+
+
+def test_find_record_matches_any_of_the_identifiers(fake_session, response):
+    session = fake_session({("GET", f"{API}/records"): [response(hits({"id": "r"}))]})
+
+    client_with(session).find_record("CERN-ARCH-A-1", ATOM_URL)
+
+    assert session.calls[0]["params"]["q"] == (
+        f'metadata.related_identifiers.identifier:("CERN-ARCH-A-1" OR "{ATOM_URL}")'
+    )
+
+
+def test_find_record_needs_an_identifier():
+    with pytest.raises(ValueError):
+        client_with(None).find_record()
 
 
 def test_find_record_rejects_quotes_in_identifier():
